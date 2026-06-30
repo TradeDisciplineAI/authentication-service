@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # ─────────────────────────────────────────────────────────────────────────────
 # Multi-stage Dockerfile for ai-trading-discipline-copilot
 #
@@ -70,6 +71,23 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
 # ── Start the server ──────────────────────────────────────────────────────────
 # --workers 1 → scale via container replicas, not multiple workers per container
 CMD ["uvicorn", "ai_trading_discipline_copilot.main:app", \
-     "--host", "0.0.0.0", \
-     "--port", "8000", \
-     "--workers", "1"]
+    "--host", "0.0.0.0", \
+    "--port", "8000", \
+    "--workers", "1"]
+=======
+FROM python:3.13-slim
+
+WORKDIR /app
+
+COPY pyproject.toml uv.lock ./
+
+RUN pip install uv
+
+RUN uv sync --frozen
+
+COPY . .
+
+EXPOSE 8000
+
+CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+>>>>>>> 62b1f55 (chore:ENG-17 add Docker development environment)
