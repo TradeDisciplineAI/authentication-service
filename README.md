@@ -124,3 +124,6 @@ uv run alembic upgrade head
 ## 📄 License
 
 MIT
+# ai-trading-discipline-copilot
+
+# Testing-integration 
