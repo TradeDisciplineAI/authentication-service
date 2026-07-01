@@ -41,6 +41,7 @@ asyncio_mode = "auto"
 addopts = "-ra --cov=src --cov-report=term-missing --cov-fail-under=80"
 
 [tool.mypy]
+plugins = ["pydantic.mypy"]
 python_version = "3.13"
 strict = true
 warn_unused_configs = true
