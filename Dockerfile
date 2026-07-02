@@ -51,8 +51,6 @@ COPY --from=builder --chown=appuser:appgroup /app/src   /app/src
 ENV PATH="/app/.venv/bin:$PATH"
 # Add src/ to PYTHONPATH so the package is importable
 ENV PYTHONPATH="/app/src"
-# Prevent Python from writing .pyc files to disk
-ENV PYTHONDONTWRITEBYTECODE=1
 # Prevent Python from buffering stdout/stderr (important for container logs)
 ENV PYTHONUNBUFFERED=1
 
@@ -70,10 +68,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
     || exit 1
 
 # ── Start the server ──────────────────────────────────────────────────────────
-# NOTE: Update this path when main.py is created by the team:
-#   ai_trading_discipline_copilot.main:app
-# --workers 1  → use 1 worker per container (scale via replicas, not workers)
-# --host 0.0.0.0 → listen on all interfaces inside the container
+# --workers 1 → scale via container replicas, not multiple workers per container
 CMD ["uvicorn", "ai_trading_discipline_copilot.main:app", \
      "--host", "0.0.0.0", \
      "--port", "8000", \
