@@ -1,13 +1,9 @@
 """Async PostgreSQL engine and session factory."""
 
-<<<<<<< HEAD
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-=======
 from collections.abc import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
->>>>>>> 034cffd (feat: add user model)
 
 from .config import get_settings
 
@@ -30,8 +26,6 @@ AsyncSessionFactory = async_sessionmaker(
     class_=AsyncSession,
     expire_on_commit=False,
 )
-<<<<<<< HEAD
-=======
 
 
 class Base(DeclarativeBase):
@@ -41,4 +35,3 @@ class Base(DeclarativeBase):
 async def get_db() -> AsyncGenerator[AsyncSession]:
     async with AsyncSessionFactory() as session:
         yield session
->>>>>>> 034cffd (feat: add user model)
