@@ -1,7 +1,6 @@
 [project]
 name = "ai-trading-discipline-copilot"
 version = "0.1.0"
-<<<<<<< HEAD
 description = "AI-powered trading discipline and psychology assistant backend built with FastAPI."
 readme = "README.md"
 authors = [
@@ -69,25 +68,3 @@ select = ["E", "F", "I", "N", "UP", "ANN", "S", "B", "SIM"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101", "ANN"]
-=======
-description = "AI-powered trading discipline assistant built with FastAPI."
-readme = "README.md"
-requires-python = ">=3.13"
-dependencies = [
-    "alembic>=1.18.5",
-    "fastapi>=0.138.2",
-    "psycopg[binary]>=3.3.4",
-    "pwdlib>=0.3.0",
-    "pydantic-settings>=2.14.2",
-    "sqlalchemy>=2.0.51",
-    "uvicorn[standard]>=0.49.0",
-]
-<<<<<<< HEAD
->>>>>>> 05936fc (ENG-17 chore:initialize FastApi project Structure)
-=======
-
-[dependency-groups]
-dev = [
-    "ruff>=0.15.20",
-]
->>>>>>> 75c18fe (chore: ENG-17 add database and development dependencies)

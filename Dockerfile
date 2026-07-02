@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Multi-stage Dockerfile for ai-trading-discipline-copilot
 #
@@ -74,20 +74,3 @@ CMD ["uvicorn", "ai_trading_discipline_copilot.main:app", \
     "--host", "0.0.0.0", \
     "--port", "8000", \
     "--workers", "1"]
-=======
-FROM python:3.13-slim
-
-WORKDIR /app
-
-COPY pyproject.toml uv.lock ./
-
-RUN pip install uv
-
-RUN uv sync --frozen
-
-COPY . .
-
-EXPOSE 8000
-
-CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
->>>>>>> 62b1f55 (chore:ENG-17 add Docker development environment)
