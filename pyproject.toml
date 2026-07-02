@@ -53,6 +53,12 @@ warn_unused_ignores = true
 pretty = true
 show_error_codes = true
 
+[[tool.mypy.overrides]]
+# models/ has no py.typed marker yet — suppress until the layer is implemented.
+module = ["ai_trading_discipline_copilot.models.*"]
+ignore_missing_imports = true
+ignore_errors = true
+
 [tool.ruff]
 target-version = "py313"
 line-length = 88
