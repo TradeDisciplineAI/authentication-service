@@ -8,6 +8,7 @@ from ai_trading_discipline_copilot import __version__
 
 from .core.config import get_settings
 from .core.exceptions import AppException
+from .routers.auth import router as auth_router
 
 settings = get_settings()
 
@@ -52,3 +53,6 @@ async def root() -> dict[str, str]:
 @app.get("/health")
 async def health() -> dict[str, str]:
     return {"status": "ok", "version": __version__, "env": settings.app_env}
+
+
+app.include_router(auth_router)
