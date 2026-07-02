@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 30
 
     # Database
-    database_url: PostgresDsn
+    database_url: SecretStr
 
     # AI Provider
     ai_provider: str = "openai"
@@ -41,6 +41,30 @@ class Settings(BaseSettings):
     def secret_key_min_length(cls, v: SecretStr) -> SecretStr:
         if len(v.get_secret_value()) < 32:
             raise ValueError("SECRET_KEY must be at least 32 characters")
+        return v
+
+    @field_validator("database_url")
+    @classmethod
+    def validate_database_url(cls, v: SecretStr) -> SecretStr:
+        url_str = v.get_secret_value()
+        if not url_str.startswith("postgresql+asyncpg://"):
+            raise ValueError("database_url must start with 'postgresql+asyncpg://'")
+        from pydantic import TypeAdapter
+
+        try:
+            TypeAdapter(PostgresDsn).validate_python(url_str)
+        except Exception as e:
+            raise ValueError(f"Invalid database URL format: {e}") from None
+        return v
+
+    @field_validator("allowed_origins")
+    @classmethod
+    def validate_allowed_origins(cls, v: list[str]) -> list[str]:
+        if "*" in v:
+            raise ValueError(
+                "Wildcard '*' is not allowed in allowed_origins "
+                "when credentials are enabled"
+            )
         return v
 
 
