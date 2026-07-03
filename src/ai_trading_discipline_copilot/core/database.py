@@ -1,7 +1,5 @@
 """Async PostgreSQL engine and session factory."""
 
-from collections.abc import AsyncGenerator
-
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
@@ -32,6 +30,5 @@ class Base(DeclarativeBase):
     pass
 
 
-async def get_db() -> AsyncGenerator[AsyncSession]:
-    async with AsyncSessionFactory() as session:
-        yield session
+# NOTE: get_db() intentionally lives in core/dependencies.py, not here —
+# that version rolls back the session on an unhandled exception.

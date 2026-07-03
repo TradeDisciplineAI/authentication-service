@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_trading_discipline_copilot.core.database import get_db
+from ai_trading_discipline_copilot.core.dependencies import get_db
 from ai_trading_discipline_copilot.schemas.user import UserCreate, UserResponse
 from ai_trading_discipline_copilot.services.user_service import UserService
 
