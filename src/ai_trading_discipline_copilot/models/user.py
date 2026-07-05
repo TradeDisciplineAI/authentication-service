@@ -3,12 +3,20 @@ from __future__ import annotations
 import enum
 import uuid
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, Enum, String, func
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import (
+    Mapped,
+    mapped_column,
+    relationship,
+)
 
 from ai_trading_discipline_copilot.core.database import Base
+
+if TYPE_CHECKING:
+    from .refresh_token import RefreshToken
 
 
 class UserRole(enum.StrEnum):
@@ -43,7 +51,10 @@ class User(Base):
         String(255),
         nullable=False,
     )
-
+    refresh_tokens: Mapped[list[RefreshToken]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
     role: Mapped[UserRole] = mapped_column(
         Enum(UserRole, name="user_role"),
         default=UserRole.USER,

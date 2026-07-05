@@ -22,11 +22,8 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 
 async def get_db() -> AsyncGenerator[AsyncSession]:
-    """Yield one async database session per request.
+    """Yield one async database session per request."""
 
-    Rolls back automatically on any unhandled exception and always
-    closes the session when the request completes.
-    """
     async with AsyncSessionFactory() as session:
         try:
             yield session
@@ -39,25 +36,28 @@ async def get_current_user(
     token: Annotated[str, Depends(oauth2_scheme)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> User:
-    """Decode the JWT and return the authenticated User.
+    """Return the authenticated user from a valid access token."""
 
-    Raises UnauthorizedException (401) if the token is invalid or expired,
-    the user does not exist, or the account is inactive.
-    """
-    # Lazy import prevents a circular dependency:
-    # core/dependencies → models/user → models/base
+    # Lazy import avoids circular imports.
     from ..models.user import User  # noqa: PLC0415
 
-    user_id = decode_access_token(token)
-    if not user_id:
+    payload = decode_access_token(token)
+
+    if payload is None:
+        raise UnauthorizedException("Could not validate credentials")
+
+    user_id = payload.get("sub")
+
+    if user_id is None:
         raise UnauthorizedException("Could not validate credentials")
 
     try:
         uid = uuid.UUID(user_id)
-    except ValueError:
+    except (ValueError, TypeError):
         raise UnauthorizedException("Could not validate credentials") from None
 
     result = await db.execute(select(User).where(User.id == uid))
+
     user: User | None = result.scalar_one_or_none()
 
     if user is None:

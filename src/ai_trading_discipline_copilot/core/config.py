@@ -24,9 +24,27 @@ class Settings(BaseSettings):
     secret_key: SecretStr
     algorithm: Literal["HS256", "HS384", "HS512"] = "HS256"
     access_token_expire_minutes: int = 30
+    refresh_token_expire_days: int = 7
+    bcrypt_rounds: int = 12
+    cookie_name: str = "refresh_token"
+    cookie_secure: bool = False
+    cookie_samesite: Literal["lax", "strict", "none"] = "lax"
+    cookie_domain: str | None = None
+    cookie_path: str = "/auth"
 
     # Database
     database_url: SecretStr
+    db_pool_size: int = 10
+    db_max_overflow: int = 20
+    db_pool_timeout: float = 30.0
+    db_pool_recycle: int = 1800
+
+    # Logging
+    log_level: str = "INFO"
+    log_format: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+    # Hosts
+    allowed_hosts: list[str] = ["*"]
 
     # AI Provider
     ai_provider: str = "openai"
