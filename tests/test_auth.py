@@ -82,6 +82,59 @@ async def test_register_duplicate_email(
 
 
 @pytest.mark.anyio
+async def test_register_duplicate_both_same_user(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """Test registration fails when both username and email match the same existing user."""
+    user = User(
+        username="duplicate",
+        email="duplicate@example.com",
+        hashed_password=hash_password("password"),
+    )
+    db_session.add(user)
+    await db_session.commit()
+
+    payload = {
+        "username": "duplicate",
+        "email": "duplicate@example.com",
+        "password": "password",
+    }
+    response = await client.post("/auth/register", json=payload)
+    assert response.status_code == 409
+    assert response.json()["detail"] == "Username already exists"
+
+
+@pytest.mark.anyio
+async def test_register_duplicate_different_users(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """Test registration fails when username matches one user and email matches another user."""
+    user_a = User(
+        username="duplicate_user",
+        email="usera@example.com",
+        hashed_password=hash_password("password"),
+    )
+    db_session.add(user_a)
+
+    user_b = User(
+        username="other_user",
+        email="duplicate_email@example.com",
+        hashed_password=hash_password("password"),
+    )
+    db_session.add(user_b)
+    await db_session.commit()
+
+    payload = {
+        "username": "duplicate_user",
+        "email": "duplicate_email@example.com",
+        "password": "password",
+    }
+    response = await client.post("/auth/register", json=payload)
+    assert response.status_code == 409
+    assert response.json()["detail"] == "Username already exists"
+
+
+@pytest.mark.anyio
 async def test_login_success(client: AsyncClient, db_session: AsyncSession) -> None:
     """Test successful login returns access token and sets cookie."""
     user = User(

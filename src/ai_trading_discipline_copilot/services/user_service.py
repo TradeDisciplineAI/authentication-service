@@ -31,10 +31,10 @@ class UserService:
             )
         )
 
-        existing_user = result.scalar_one_or_none()
+        existing_users = result.scalars().all()
 
-        if existing_user:
-            if existing_user.username == user_data.username:
+        if existing_users:
+            if any(u.username == user_data.username for u in existing_users):
                 logger.warning(
                     "Registration failed: Username '%s' already exists",
                     user_data.username,
