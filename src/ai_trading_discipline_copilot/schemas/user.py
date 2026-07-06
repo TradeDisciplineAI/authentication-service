@@ -4,15 +4,16 @@ import uuid
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 from ai_trading_discipline_copilot.models.user import UserRole
 
 
 class UserCreate(BaseModel):
-    username: str
+    username: str = Field(min_length=3, max_length=50)
     email: EmailStr
-    password: str
+    # min 8 chars enforces basic strength; max 72 matches bcrypt's byte limit.
+    password: str = Field(min_length=8, max_length=72)
 
 
 class UserResponse(BaseModel):
@@ -43,4 +44,3 @@ class UserSessionResponse(BaseModel):
     created_at: datetime
     last_used_at: datetime | None = None
     is_current: bool
-

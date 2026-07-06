@@ -27,7 +27,9 @@ class Settings(BaseSettings):
     refresh_token_expire_days: int = 7
     bcrypt_rounds: int = 12
     cookie_name: str = "refresh_token"
-    cookie_secure: bool = False
+    # Defaults True so cookies always require HTTPS outside local dev.
+    # Override with COOKIE_SECURE=false in .env for local development only.
+    cookie_secure: bool = True
     cookie_samesite: Literal["lax", "strict", "none"] = "lax"
     cookie_domain: str | None = None
     cookie_path: str = "/auth"
@@ -44,7 +46,9 @@ class Settings(BaseSettings):
     log_format: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 
     # Hosts
-    allowed_hosts: list[str] = ["*"]
+    # Restrict to known safe hosts by default — wildcard defeats TrustedHostMiddleware.
+    # In production set ALLOWED_HOSTS=["yourdomain.com"] via environment variable.
+    allowed_hosts: list[str] = ["localhost", "127.0.0.1"]
 
     # AI Provider
     ai_provider: str = "openai"

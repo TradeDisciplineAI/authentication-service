@@ -160,11 +160,12 @@ class RefreshTokenService:
     ) -> int:
         """Delete all expired refresh sessions from the database."""
         from sqlalchemy import delete
+        from sqlalchemy.engine import CursorResult
 
         stmt = delete(RefreshToken).where(RefreshToken.expires_at <= datetime.now(UTC))
-        result = await db.execute(stmt)
+        result: CursorResult[tuple[()]] = await db.execute(stmt)  # type: ignore[assignment]
         await db.commit()
-        deleted_count = result.rowcount
+        deleted_count: int = result.rowcount
         logger.info("Cleaned up %d expired sessions from database", deleted_count)
         return deleted_count
 

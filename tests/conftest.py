@@ -36,7 +36,7 @@ async def create_test_db() -> None:
 
 
 @pytest.fixture
-async def db_engine() -> AsyncGenerator[AsyncEngine, None]:
+async def db_engine() -> AsyncGenerator[AsyncEngine]:
     """Create a database engine scoped to the test's event loop."""
     await create_test_db()
 
@@ -66,7 +66,7 @@ def session_factory(
 @pytest.fixture
 async def db_session(
     session_factory: async_sessionmaker[AsyncSession],
-) -> AsyncGenerator[AsyncSession, None]:
+) -> AsyncGenerator[AsyncSession]:
     """Yield a database session from the test session factory."""
     async with session_factory() as session:
         yield session
@@ -75,8 +75,10 @@ async def db_session(
 @pytest.fixture(autouse=True)
 def patch_session_factory(
     session_factory: async_sessionmaker[AsyncSession],
-) -> Generator[None, None, None]:
-    """Patch the global AsyncSessionFactory to use the test session factory during tests."""
+) -> Generator[None]:
+    """Patch the global AsyncSessionFactory to use the test session factory
+    during tests.
+    """
     from ai_trading_discipline_copilot.core import database
 
     old_factory = database.AsyncSessionFactory
@@ -88,10 +90,10 @@ def patch_session_factory(
 @pytest.fixture
 async def client(
     session_factory: async_sessionmaker[AsyncSession],
-) -> AsyncGenerator[AsyncClient, None]:
+) -> AsyncGenerator[AsyncClient]:
     """Yield an AsyncClient with the database dependency overridden to use tests."""
 
-    async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
+    async def override_get_db() -> AsyncGenerator[AsyncSession]:
         async with session_factory() as session:
             try:
                 yield session
