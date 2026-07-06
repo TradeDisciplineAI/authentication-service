@@ -49,6 +49,7 @@ class UserService:
             username=user_data.username,
             email=user_data.email,
             hashed_password=hash_password(user_data.password),
+            is_verified=False,
         )
 
         db.add(user)

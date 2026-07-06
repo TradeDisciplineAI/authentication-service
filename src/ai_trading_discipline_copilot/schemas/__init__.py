@@ -1,5 +1,11 @@
 # Pydantic request/response schemas
 # Contains: user, trade, journal, psychology
+from .email_verification import (
+    ResendVerificationRequest,
+    ResendVerificationResponse,
+    VerifyEmailRequest,
+    VerifyEmailResponse,
+)
 from .password_reset import (
     ForgotPasswordRequest,
     ForgotPasswordResponse,
@@ -15,4 +21,8 @@ __all__ = [
     "ForgotPasswordResponse",
     "ResetPasswordRequest",
     "ResetPasswordResponse",
+    "VerifyEmailRequest",
+    "VerifyEmailResponse",
+    "ResendVerificationRequest",
+    "ResendVerificationResponse",
 ]

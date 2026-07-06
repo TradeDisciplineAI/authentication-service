@@ -26,6 +26,12 @@ from ai_trading_discipline_copilot.core.exceptions import (
 )
 from ai_trading_discipline_copilot.core.security import decode_refresh_token
 from ai_trading_discipline_copilot.models.user import User
+from ai_trading_discipline_copilot.schemas.email_verification import (
+    ResendVerificationRequest,
+    ResendVerificationResponse,
+    VerifyEmailRequest,
+    VerifyEmailResponse,
+)
 from ai_trading_discipline_copilot.schemas.password_reset import (
     ForgotPasswordRequest,
     ForgotPasswordResponse,
@@ -40,6 +46,9 @@ from ai_trading_discipline_copilot.schemas.user import (
 )
 from ai_trading_discipline_copilot.services.auth_service import AuthService
 from ai_trading_discipline_copilot.services.email_service import EmailService
+from ai_trading_discipline_copilot.services.email_verification_service import (
+    EmailVerificationService,
+)
 from ai_trading_discipline_copilot.services.password_reset_service import (
     PasswordResetService,
 )
@@ -95,11 +104,22 @@ async def run_cleanup_task() -> None:
 )
 async def register(
     user_data: UserCreate,
+    background_tasks: BackgroundTasks,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> UserResponse:
     """Register a new user."""
 
     user = await UserService.register_user(db, user_data)
+
+    plain_token = await EmailVerificationService.create_verification_token(db, user)
+    verification_url = f"{settings.frontend_url}/verify-email?token={plain_token}"
+
+    background_tasks.add_task(
+        EmailService.send_verification_email,
+        to=user.email,
+        verification_url=verification_url,
+    )
+
     return UserResponse.model_validate(user)
 
 
@@ -502,4 +522,64 @@ async def reset_password(
     return ResetPasswordResponse(
         message="Password reset successful."
     )
+
+
+@router.post(
+    "/verify-email",
+    response_model=VerifyEmailResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def verify_email(
+    request_data: VerifyEmailRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> VerifyEmailResponse:
+    """Verify a user's email using a verification token."""
+    try:
+        await EmailVerificationService.verify_email(db, request_data.token)
+    except UnauthorizedException as err:
+        raise UnauthorizedException(
+            "Invalid or expired email verification token"
+        ) from err
+
+    return VerifyEmailResponse(
+        message="Email verified successfully."
+    )
+
+
+@router.post(
+    "/resend-verification",
+    response_model=ResendVerificationResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def resend_verification(
+    request_data: ResendVerificationRequest,
+    background_tasks: BackgroundTasks,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> ResendVerificationResponse:
+    """Resend email verification link.
+
+    Always returns a generic success response to prevent account enumeration.
+    """
+    result = await db.execute(
+        select(User).where(User.email == request_data.email)
+    )
+    user = result.scalar_one_or_none()
+
+    if user and not user.is_verified:
+        plain_token = await EmailVerificationService.create_verification_token(
+            db, user
+        )
+        verification_url = (
+            f"{settings.frontend_url}/verify-email?token={plain_token}"
+        )
+        background_tasks.add_task(
+            EmailService.send_verification_email,
+            to=user.email,
+            verification_url=verification_url,
+        )
+
+    return ResendVerificationResponse(
+        message="Verification email sent."
+    )
+
 

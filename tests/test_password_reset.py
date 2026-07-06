@@ -29,6 +29,7 @@ async def test_user(db_session: AsyncSession) -> User:
         username="resetuser",
         email="resetuser@example.com",
         hashed_password=hash_password(TEST_PASSWORD),
+        is_verified=True,
     )
     db_session.add(user)
     await db_session.commit()

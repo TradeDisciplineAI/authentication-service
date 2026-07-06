@@ -6,7 +6,10 @@ from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_trading_discipline_copilot.core.config import get_settings
-from ai_trading_discipline_copilot.core.exceptions import UnauthorizedException
+from ai_trading_discipline_copilot.core.exceptions import (
+    ForbiddenException,
+    UnauthorizedException,
+)
 from ai_trading_discipline_copilot.core.security import (
     create_access_token,
     create_refresh_token,
@@ -130,6 +133,12 @@ class AuthService:
             username=username,
             password=password,
         )
+
+        if not user.is_verified:
+            logger.warning(
+                "Blocked login attempt for unverified user: '%s'", user.username
+            )
+            raise ForbiddenException("Please verify your email before logging in.")
 
         access_token, refresh_token, refresh_jti = AuthService._create_tokens(
             user,
