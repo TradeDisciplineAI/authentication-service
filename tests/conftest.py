@@ -116,8 +116,8 @@ async def client(
 def mock_resend_emails() -> Generator[None]:
     """Globally mock resend email calls during tests to prevent API key errors."""
     from unittest.mock import patch
-    with patch("resend.Emails.send") as mock:
-        yield mock
+    with patch("resend.Emails.send") as mock_send, patch("resend.Emails.send_async") as mock_send_async:
+        yield mock_send
 
 
 # Event listener to set is_verified=True on User instantiation if not explicitly passed.

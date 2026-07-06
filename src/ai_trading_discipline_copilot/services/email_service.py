@@ -23,7 +23,7 @@ class EmailService:
     ) -> None:
         """Send an email using Resend."""
 
-        resend.Emails.send(
+        await resend.Emails.send_async(
             {
                 "from": settings.email_from,
                 "to": to,

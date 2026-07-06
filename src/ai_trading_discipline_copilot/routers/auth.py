@@ -61,6 +61,7 @@ if TYPE_CHECKING:
     pass
 
 settings = get_settings()
+_REFRESH_COOKIE_NAME = settings.cookie_name
 logger = logging.getLogger(__name__)
 
 router = APIRouter(
@@ -168,7 +169,7 @@ async def refresh(
 ) -> Token:
     """Rotate the refresh token and issue a new access token."""
 
-    refresh_token = request.cookies.get("refresh_token")
+    refresh_token = request.cookies.get(_REFRESH_COOKIE_NAME)
     if refresh_token is None:
         raise UnauthorizedException("Missing refresh token")
 
@@ -222,7 +223,7 @@ async def logout(
 ) -> None:
     """Log out the current session by revoking the refresh token and deleting the cookie."""  # noqa: E501
 
-    refresh_token = request.cookies.get("refresh_token")
+    refresh_token = request.cookies.get(_REFRESH_COOKIE_NAME)
     await AuthService.logout(
         response=response,
         db=db,
@@ -259,7 +260,7 @@ async def get_sessions(
 ) -> list[UserSessionResponse]:
     """Get all active sessions for the authenticated user."""
 
-    refresh_token = request.cookies.get("refresh_token")
+    refresh_token = request.cookies.get(_REFRESH_COOKIE_NAME)
     current_jti = None
     if refresh_token:
         payload = decode_refresh_token(refresh_token)
@@ -298,7 +299,7 @@ async def revoke_session(
 ) -> None:
     """Revoke a specific session for the user."""
 
-    refresh_token = request.cookies.get("refresh_token")
+    refresh_token = request.cookies.get(_REFRESH_COOKIE_NAME)
     session = await RefreshTokenService.get_by_id(db=db, session_id=session_id)
     if not session or session.user_id != current_user.id:
         raise NotFoundException("Session not found")
@@ -328,17 +329,6 @@ async def cleanup_sessions(
 
     deleted_count = await RefreshTokenService.cleanup_expired_sessions(db=db)
     return {"deleted_sessions": deleted_count}
-
-
-@router.post("/test-email", status_code=204)
-async def test_email() -> None:
-    """Temporary endpoint to verify Resend integration."""
-
-    await EmailService.send_email(
-        to="sreenandpk3@gmail.com",
-        subject="Resend Test",
-        html="<h1>Hello from AI Trading Discipline Copilot 🚀</h1>",
-    )
 
 
 async def send_reset_email_task(email: str, reset_url: str, app_name: str) -> None:
