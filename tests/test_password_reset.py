@@ -514,3 +514,33 @@ async def test_reset_password_endpoint_already_used_token(
     )
     assert response.status_code == 401
     assert response.json()["detail"] == "Invalid or expired password reset token"
+
+
+@pytest.mark.anyio
+async def test_forgot_password_email_failure_logged(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+) -> None:
+    """Test requesting reset succeeds even if background email fails.
+
+    Verifies that the error is logged.
+    """
+    with patch(
+        "ai_trading_discipline_copilot.services.email_service.EmailService.send_email",
+        side_effect=Exception("Resend API key invalid"),
+    ), patch(
+        "ai_trading_discipline_copilot.routers.auth.logger.exception"
+    ) as mock_log:
+        response = await client.post(
+            "/auth/forgot-password",
+            json={"email": test_user.email},
+        )
+        assert response.status_code == 200
+        assert "password reset link has been sent" in response.json()["message"]
+
+        # Logged failure with password_reset context
+        mock_log.assert_called_once()
+        log_args = mock_log.call_args[0]
+        assert "Failed to send email [type=password_reset]" in log_args[0]
+

@@ -342,3 +342,44 @@ async def test_cleanup_expired_tokens(
     remaining = result.scalars().all()
     assert len(remaining) == 1
     assert remaining[0].token_hash == "hash4"  # noqa: S105
+
+
+@pytest.mark.anyio
+async def test_register_verification_email_failure_logged(
+    client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    """Test registration succeeds even if background email fails.
+
+    Verifies that the error is logged.
+    """
+    payload = {
+        "username": "emailfail",
+        "email": "emailfail@example.com",
+        "password": TEST_PASSWORD,
+    }
+
+    with patch(
+        "ai_trading_discipline_copilot.services.email_service.EmailService.send_verification_email",
+        side_effect=Exception("SMTP or API connection timeout"),
+    ), patch(
+        "ai_trading_discipline_copilot.routers.auth.logger.exception"
+    ) as mock_log:
+        response = await client.post("/auth/register", json=payload)
+
+        # Registration must still succeed immediately and return 201
+        assert response.status_code == 201
+
+        # User should still be created
+        result = await db_session.execute(
+            select(User).where(User.username == "emailfail")
+        )
+        user = result.scalar_one_or_none()
+        assert user is not None
+        assert user.is_verified is False
+
+        # Verify logger.exception was called once with context
+        mock_log.assert_called_once()
+        log_args = mock_log.call_args[0]
+        assert "Failed to send email [type=verification]" in log_args[0]
+

@@ -116,8 +116,9 @@ async def register(
     verification_url = f"{settings.frontend_url}/verify-email?token={plain_token}"
 
     background_tasks.add_task(
-        EmailService.send_verification_email,
-        to=user.email,
+        send_verification_email_task,
+        user_id=user.id,
+        email=user.email,
         verification_url=verification_url,
     )
 
@@ -331,10 +332,42 @@ async def cleanup_sessions(
     return {"deleted_sessions": deleted_count}
 
 
-async def send_reset_email_task(email: str, reset_url: str, app_name: str) -> None:
+async def send_verification_email_task(
+    user_id: uuid.UUID,
+    email: str,
+    verification_url: str,
+) -> None:
+    """Send email verification link asynchronously in the background.
+
+    Args:
+        user_id: The ID of the user.
+        email: The recipient's email address.
+        verification_url: The verification link.
+    """
+    try:
+        await EmailService.send_verification_email(
+            to=email,
+            verification_url=verification_url,
+        )
+    except Exception as e:
+        logger.exception(
+            "Failed to send email [type=verification] to user_id=%s, email=%s: %s",
+            user_id,
+            email,
+            e,
+        )
+
+
+async def send_reset_email_task(
+    user_id: uuid.UUID,
+    email: str,
+    reset_url: str,
+    app_name: str,
+) -> None:
     """Send a password reset email asynchronously in the background.
 
     Args:
+        user_id: The ID of the user.
         email: The recipient's email address.
         reset_url: The plain-text password reset URL.
         app_name: The application name to display.
@@ -443,7 +476,12 @@ async def send_reset_email_task(email: str, reset_url: str, app_name: str) -> No
             html=html_content,
         )
     except Exception as e:
-        logger.exception("Failed to send password reset email to %s: %s", email, e)
+        logger.exception(
+            "Failed to send email [type=password_reset] to user_id=%s, email=%s: %s",
+            user_id,
+            email,
+            e,
+        )
 
 
 @router.post(
@@ -472,6 +510,7 @@ async def forgot_password(
         reset_url = f"{settings.frontend_url}/reset-password?token={plain_token}"
         background_tasks.add_task(
             send_reset_email_task,
+            user_id=user.id,
             email=user.email,
             reset_url=reset_url,
             app_name=settings.app_name,
@@ -563,8 +602,9 @@ async def resend_verification(
             f"{settings.frontend_url}/verify-email?token={plain_token}"
         )
         background_tasks.add_task(
-            EmailService.send_verification_email,
-            to=user.email,
+            send_verification_email_task,
+            user_id=user.id,
+            email=user.email,
             verification_url=verification_url,
         )
 
