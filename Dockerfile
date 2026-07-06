@@ -68,9 +68,10 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
     "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" \
     || exit 1
 
+# ── Environment Variables for Deployment ─────────────────────────────────────
+ENV UVICORN_HOST=0.0.0.0
+ENV UVICORN_PORT=8000
+ENV UVICORN_WORKERS=1
+
 # ── Start the server ──────────────────────────────────────────────────────────
-# --workers 1 → scale via container replicas, not multiple workers per container
-CMD ["uvicorn", "ai_trading_discipline_copilot.main:app", \
-    "--host", "0.0.0.0", \
-    "--port", "8000", \
-    "--workers", "1"]
+CMD ["uvicorn", "ai_trading_discipline_copilot.main:app"]

@@ -24,9 +24,31 @@ class Settings(BaseSettings):
     secret_key: SecretStr
     algorithm: Literal["HS256", "HS384", "HS512"] = "HS256"
     access_token_expire_minutes: int = 30
+    refresh_token_expire_days: int = 7
+    bcrypt_rounds: int = 12
+    cookie_name: str = "refresh_token"
+    # Defaults True so cookies always require HTTPS outside local dev.
+    # Override with COOKIE_SECURE=false in .env for local development only.
+    cookie_secure: bool = True
+    cookie_samesite: Literal["lax", "strict", "none"] = "lax"
+    cookie_domain: str | None = None
+    cookie_path: str = "/auth"
 
     # Database
     database_url: SecretStr
+    db_pool_size: int = 10
+    db_max_overflow: int = 20
+    db_pool_timeout: float = 30.0
+    db_pool_recycle: int = 1800
+
+    # Logging
+    log_level: str = "INFO"
+    log_format: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+    # Hosts
+    # Restrict to known safe hosts by default — wildcard defeats TrustedHostMiddleware.
+    # In production set ALLOWED_HOSTS=["yourdomain.com"] via environment variable.
+    allowed_hosts: list[str] = ["localhost", "127.0.0.1"]
 
     # AI Provider
     ai_provider: str = "openai"

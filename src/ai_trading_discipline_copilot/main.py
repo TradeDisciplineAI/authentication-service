@@ -1,10 +1,11 @@
 """Application entry point."""
 
+import logging
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
-
-from ai_trading_discipline_copilot import __version__
 
 from .core.config import get_settings
 from .core.exceptions import AppException
@@ -12,14 +13,25 @@ from .routers.auth import router as auth_router
 
 settings = get_settings()
 
+# Initialize logging configuration
+logging.basicConfig(
+    level=settings.log_level,
+    format=settings.log_format,
+)
+
 app = FastAPI(
-    title="AI Trading Discipline Copilot",
-    version=__version__,
+    title=settings.app_name,
+    version=settings.app_version,
     description="AI-powered trading discipline and psychology assistant.",
     # Disable interactive docs outside of development to avoid exposing
     # the full API schema to unauthenticated users in staging/production.
     docs_url="/docs" if settings.app_env == "development" else None,
     redoc_url="/redoc" if settings.app_env == "development" else None,
+)
+
+app.add_middleware(
+    TrustedHostMiddleware,
+    allowed_hosts=settings.allowed_hosts,
 )
 
 app.add_middleware(
@@ -52,7 +64,7 @@ async def root() -> dict[str, str]:
 
 @app.get("/health")
 async def health() -> dict[str, str]:
-    return {"status": "ok", "version": __version__, "env": settings.app_env}
+    return {"status": "ok", "version": settings.app_version, "env": settings.app_env}
 
 
 app.include_router(auth_router)

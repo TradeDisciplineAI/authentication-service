@@ -10,8 +10,10 @@ settings = get_settings()
 engine = create_async_engine(
     settings.database_url.get_secret_value(),
     echo=settings.debug,
-    pool_size=10,
-    max_overflow=20,
+    pool_size=settings.db_pool_size,
+    max_overflow=settings.db_max_overflow,
+    pool_timeout=settings.db_pool_timeout,
+    pool_recycle=settings.db_pool_recycle,
     # Validates connections before use — prevents stale connection errors
     # after idle periods or database restarts.
     pool_pre_ping=True,
