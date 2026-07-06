@@ -13,6 +13,8 @@ from sqlalchemy.orm import (
     relationship,
 )
 
+if TYPE_CHECKING:
+    from .password_reset_token import PasswordResetToken
 from ai_trading_discipline_copilot.core.database import Base
 
 if TYPE_CHECKING:
@@ -60,7 +62,10 @@ class User(Base):
         default=UserRole.USER,
         nullable=False,
     )
-
+    password_reset_tokens: Mapped[list[PasswordResetToken]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
     is_active: Mapped[bool] = mapped_column(
         Boolean,
         default=True,
