@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "AI-powered trading discipline and psychology assistant backend built with FastAPI."
 readme = "README.md"
 authors = [
-    { name = "AnjalDev", email = "mkmanjal@gmail.com" }
+    { name = "Trading Discipline Team" }
 ]
 requires-python = ">=3.13"
 
@@ -68,3 +68,15 @@ select = ["E", "F", "I", "N", "UP", "ANN", "S", "B", "SIM"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101", "ANN"]
+"alembic/versions/*.py" = ["E501"]
+
+[tool.coverage.run]
+source = ["ai_trading_discipline_copilot"]
+
+[tool.coverage.paths]
+source = [
+    "src/ai_trading_discipline_copilot",
+    "*/site-packages/ai_trading_discipline_copilot",
+    "*\\site-packages\\ai_trading_discipline_copilot",
+]
+
