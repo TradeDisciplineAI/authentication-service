@@ -12,12 +12,12 @@ from fastapi import (
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_trading_discipline_copilot.core.config import get_settings
 from ai_trading_discipline_copilot.core.dependencies import (
     get_current_user,
     get_db,
 )
 from ai_trading_discipline_copilot.core.exceptions import (
+    ForbiddenException,
     NotFoundException,
     UnauthorizedException,
 )
@@ -29,6 +29,7 @@ from ai_trading_discipline_copilot.schemas.user import (
     UserSessionResponse,
 )
 from ai_trading_discipline_copilot.services.auth_service import AuthService
+from ai_trading_discipline_copilot.services.email_service import EmailService
 from ai_trading_discipline_copilot.services.refresh_token_service import (
     RefreshTokenService,
 )
@@ -36,8 +37,6 @@ from ai_trading_discipline_copilot.services.user_service import UserService
 
 if TYPE_CHECKING:
     from ai_trading_discipline_copilot.models.user import User
-
-settings = get_settings()
 
 router = APIRouter(
     prefix="/auth",
@@ -133,7 +132,7 @@ async def refresh(
 ) -> Token:
     """Rotate the refresh token and issue a new access token."""
 
-    refresh_token = request.cookies.get(settings.cookie_name)
+    refresh_token = request.cookies.get("refresh_token")
     if refresh_token is None:
         raise UnauthorizedException("Missing refresh token")
 
@@ -185,11 +184,9 @@ async def logout(
     response: Response,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> None:
-    """Log out the current session by revoking the refresh token
-    and deleting the cookie.
-    """
+    """Log out the current session by revoking the refresh token and deleting the cookie."""  # noqa: E501
 
-    refresh_token = request.cookies.get(settings.cookie_name)
+    refresh_token = request.cookies.get("refresh_token")
     await AuthService.logout(
         response=response,
         db=db,
@@ -226,7 +223,7 @@ async def get_sessions(
 ) -> list[UserSessionResponse]:
     """Get all active sessions for the authenticated user."""
 
-    refresh_token = request.cookies.get(settings.cookie_name)
+    refresh_token = request.cookies.get("refresh_token")
     current_jti = None
     if refresh_token:
         payload = decode_refresh_token(refresh_token)
@@ -265,7 +262,7 @@ async def revoke_session(
 ) -> None:
     """Revoke a specific session for the user."""
 
-    refresh_token = request.cookies.get(settings.cookie_name)
+    refresh_token = request.cookies.get("refresh_token")
     session = await RefreshTokenService.get_by_id(db=db, session_id=session_id)
     if not session or session.user_id != current_user.id:
         raise NotFoundException("Session not found")
@@ -277,3 +274,32 @@ async def revoke_session(
         payload = decode_refresh_token(refresh_token)
         if payload and payload.get("jti") == session.jti:
             AuthService.delete_refresh_cookie(response)
+
+
+@router.post(
+    "/cleanup",
+    status_code=status.HTTP_200_OK,
+)
+async def cleanup_sessions(
+    current_user: Annotated["User", Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict[str, int]:
+    """Clean up expired sessions from the database (Admin only)."""
+    from ai_trading_discipline_copilot.models.user import UserRole
+
+    if current_user.role != UserRole.ADMIN:
+        raise ForbiddenException("Only admins can perform session cleanup")
+
+    deleted_count = await RefreshTokenService.cleanup_expired_sessions(db=db)
+    return {"deleted_sessions": deleted_count}
+
+
+@router.post("/test-email", status_code=204)
+async def test_email() -> None:
+    """Temporary endpoint to verify Resend integration."""
+
+    await EmailService.send_email(
+        to="sreenandpk3@gmail.com",
+        subject="Resend Test",
+        html="<h1>Hello from AI Trading Discipline Copilot 🚀</h1>",
+    )
