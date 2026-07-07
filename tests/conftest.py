@@ -110,3 +110,24 @@ async def client(
         yield ac
 
     app.dependency_overrides.clear()
+
+
+@pytest.fixture(autouse=True)
+def mock_resend_emails() -> Generator[None]:
+    """Globally mock resend email calls during tests to prevent API key errors."""
+    from unittest.mock import patch
+    with patch("resend.Emails.send") as mock_send, patch("resend.Emails.send_async") as mock_send_async:
+        yield mock_send
+
+
+# Event listener to set is_verified=True on User instantiation if not explicitly passed.
+# This prevents existing tests from failing since email verification wasn't present.
+from sqlalchemy import event
+from ai_trading_discipline_copilot.models.user import User
+
+
+@event.listens_for(User, "init")
+def receive_init(target, args, kwargs) -> None:
+    if "is_verified" not in kwargs:
+        kwargs["is_verified"] = True
+

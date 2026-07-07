@@ -13,10 +13,11 @@ from sqlalchemy.orm import (
     relationship,
 )
 
-from ai_trading_discipline_copilot.core.database import Base
-
 if TYPE_CHECKING:
+    from .email_verification_token import EmailVerificationToken
+    from .password_reset_token import PasswordResetToken
     from .refresh_token import RefreshToken
+from ai_trading_discipline_copilot.core.database import Base
 
 
 class UserRole(enum.StrEnum):
@@ -60,7 +61,14 @@ class User(Base):
         default=UserRole.USER,
         nullable=False,
     )
-
+    password_reset_tokens: Mapped[list[PasswordResetToken]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    email_verification_tokens: Mapped[list[EmailVerificationToken]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
     is_active: Mapped[bool] = mapped_column(
         Boolean,
         default=True,

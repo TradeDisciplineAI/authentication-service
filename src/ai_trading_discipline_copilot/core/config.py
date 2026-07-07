@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     refresh_token_expire_days: int = 7
     bcrypt_rounds: int = 12
     cookie_name: str = "refresh_token"
+
     # Defaults True so cookies always require HTTPS outside local dev.
     # Override with COOKIE_SECURE=false in .env for local development only.
     cookie_secure: bool = True
@@ -55,8 +56,16 @@ class Settings(BaseSettings):
     openai_api_key: SecretStr = SecretStr("")
     ai_model: str = "gpt-4o"
 
+    # Email
+    resend_api_key: SecretStr
+    email_from: str
+    frontend_url: str
+
     # CORS
-    allowed_origins: list[str] = ["http://localhost:3000", "http://localhost:8000"]
+    allowed_origins: list[str] = [
+        "http://localhost:3000",
+        "http://localhost:8000",
+    ]
 
     @field_validator("secret_key")
     @classmethod
@@ -69,24 +78,31 @@ class Settings(BaseSettings):
     @classmethod
     def validate_database_url(cls, v: SecretStr) -> SecretStr:
         url_str = v.get_secret_value()
+
         if not url_str.startswith("postgresql+asyncpg://"):
             raise ValueError("database_url must start with 'postgresql+asyncpg://'")
+
         from pydantic import TypeAdapter
 
         try:
             TypeAdapter(PostgresDsn).validate_python(url_str)
         except Exception as e:
             raise ValueError(f"Invalid database URL format: {e}") from None
+
         return v
 
     @field_validator("allowed_origins")
     @classmethod
-    def validate_allowed_origins(cls, v: list[str]) -> list[str]:
+    def validate_allowed_origins(
+        cls,
+        v: list[str],
+    ) -> list[str]:
         if "*" in v:
             raise ValueError(
                 "Wildcard '*' is not allowed in allowed_origins "
                 "when credentials are enabled"
             )
+
         return v
 
 
