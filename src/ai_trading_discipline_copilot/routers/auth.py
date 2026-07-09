@@ -746,8 +746,10 @@ async def google_callback(
     )
 
     # 5. Append access token to redirect URL for frontend usage as a fragment (#)
-    # This prevents the token from leaking in browser history, proxy logs,
-    # or Referer headers.
+    # Fragments are NOT sent to the server in HTTP requests, preventing token
+    # leakage in proxy/server logs and Referer headers. However, fragments are
+    # still visible in the browser address bar. The frontend should clear the
+    # hash immediately after reading the token (e.g. history.replaceState).
     token = local_tokens.access_token
     redirect_response.headers["Location"] = f"{redirect_url}#token={token}"
     return redirect_response
