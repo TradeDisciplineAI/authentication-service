@@ -95,9 +95,20 @@ async def run_cleanup_task() -> None:
     from ai_trading_discipline_copilot.core.database import AsyncSessionFactory
 
     async with AsyncSessionFactory() as db:
-        await RefreshTokenService.cleanup_expired_sessions(db)
-        await EmailVerificationService.cleanup_expired_tokens(db)
-        await PasswordResetService.cleanup_expired_tokens(db)
+        try:
+            await RefreshTokenService.cleanup_expired_sessions(db)
+        except Exception:
+            logger.exception("Failed to clean up expired refresh token sessions")
+
+        try:
+            await EmailVerificationService.cleanup_expired_tokens(db)
+        except Exception:
+            logger.exception("Failed to clean up expired email verification tokens")
+
+        try:
+            await PasswordResetService.cleanup_expired_tokens(db)
+        except Exception:
+            logger.exception("Failed to clean up expired password reset tokens")
 
 
 @router.post(
