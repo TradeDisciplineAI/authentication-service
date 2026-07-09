@@ -41,20 +41,50 @@ class AuthService:
         """Authenticate a user using a username or email and password."""
 
         result = await db.execute(
-            select(User).where(
+            select(User)
+            .where(
                 or_(
                     User.username == username,
                     User.email == username,
                 )
             )
+            .with_for_update()
         )
 
         user = result.scalar_one_or_none()
+
+        # Check account lockout before any password verification
+        if user is not None and user.lockout_until is not None:
+            if user.lockout_until > datetime.now(UTC):
+                logger.warning(
+                    "Blocked login attempt for locked account: '%s'", user.username
+                )
+                raise UnauthorizedException(
+                    "Account is temporarily locked due to too many failed login "
+                    "attempts. Please try again later."
+                )
+            else:
+                # Lockout has expired — reset the counter
+                user.failed_login_attempts = 0
+                user.lockout_until = None
+                await db.commit()
 
         if user is None or not verify_password(
             password,
             user.hashed_password,
         ):
+            if user is not None:
+                user.failed_login_attempts += 1
+                if user.failed_login_attempts >= settings.max_login_attempts:
+                    user.lockout_until = datetime.now(UTC) + timedelta(
+                        minutes=settings.lockout_duration_minutes
+                    )
+                    logger.warning(
+                        "Account locked for user: '%s' after %d failed attempts",
+                        user.username,
+                        user.failed_login_attempts,
+                    )
+                await db.commit()
             logger.warning("Failed login attempt for username/email: '%s'", username)
             raise UnauthorizedException("Invalid username or password")
 
@@ -63,6 +93,12 @@ class AuthService:
                 "Blocked login attempt for inactive user: '%s'", user.username
             )
             raise UnauthorizedException("User account is disabled")
+
+        # Successful login — reset failure counters
+        if user.failed_login_attempts > 0:
+            user.failed_login_attempts = 0
+            user.lockout_until = None
+            await db.commit()
 
         return user
 

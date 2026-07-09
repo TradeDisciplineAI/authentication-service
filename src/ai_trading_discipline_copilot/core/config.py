@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     cookie_domain: str | None = None
     cookie_path: str = "/auth"
 
+    # Account lockout — brute-force protection
+    max_login_attempts: int = 10
+    lockout_duration_minutes: int = 15
+
     # Database
     database_url: SecretStr
     db_pool_size: int = 10

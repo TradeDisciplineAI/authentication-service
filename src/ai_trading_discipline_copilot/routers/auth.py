@@ -24,6 +24,7 @@ from ai_trading_discipline_copilot.core.exceptions import (
     NotFoundException,
     UnauthorizedException,
 )
+from ai_trading_discipline_copilot.core.limiter import limiter
 from ai_trading_discipline_copilot.core.security import decode_refresh_token
 from ai_trading_discipline_copilot.models.user import User
 from ai_trading_discipline_copilot.schemas.email_verification import (
@@ -116,7 +117,9 @@ async def run_cleanup_task() -> None:
     response_model=UserResponse,
     status_code=status.HTTP_201_CREATED,
 )
+@limiter.limit("5/minute")
 async def register(
+    request: Request,
     user_data: UserCreate,
     background_tasks: BackgroundTasks,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -142,6 +145,7 @@ async def register(
     "/login",
     response_model=Token,
 )
+@limiter.limit("10/minute")
 async def login(
     response: Response,
     request: Request,
@@ -502,7 +506,9 @@ async def send_reset_email_task(
     response_model=ForgotPasswordResponse,
     status_code=status.HTTP_200_OK,
 )
+@limiter.limit("3/hour")
 async def forgot_password(
+    request: Request,
     request_data: ForgotPasswordRequest,
     background_tasks: BackgroundTasks,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -584,7 +590,9 @@ async def verify_email(
     response_model=ResendVerificationResponse,
     status_code=status.HTTP_200_OK,
 )
+@limiter.limit("3/hour")
 async def resend_verification(
+    request: Request,
     request_data: ResendVerificationRequest,
     background_tasks: BackgroundTasks,
     db: Annotated[AsyncSession, Depends(get_db)],
