@@ -6,12 +6,16 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
 from .core.config import get_settings
 from .core.exceptions import AppException
+from .core.limiter import limiter
 from .routers.auth import router as auth_router
 
 settings = get_settings()
+
 
 # Initialize logging configuration
 logging.basicConfig(
@@ -28,6 +32,10 @@ app = FastAPI(
     docs_url="/docs" if settings.app_env == "development" else None,
     redoc_url="/redoc" if settings.app_env == "development" else None,
 )
+
+# Attach limiter state and exception handler
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
 
 app.add_middleware(
     TrustedHostMiddleware,

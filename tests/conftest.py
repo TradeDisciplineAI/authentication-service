@@ -1,5 +1,6 @@
 from collections.abc import AsyncGenerator, Generator
 from typing import Any
+from urllib.parse import urlsplit, urlunsplit
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -19,14 +20,14 @@ from ai_trading_discipline_copilot.models.user import User
 
 settings = get_settings()
 
-TEST_DATABASE_URL = (
-    "postgresql+asyncpg://postgres:password@localhost:5432/trading_test_db"
-)
+db_url = settings.database_url.get_secret_value()
+parsed = urlsplit(db_url)
+TEST_DATABASE_URL = urlunsplit(parsed._replace(path="/trading_test_db"))
+admin_url = urlunsplit(parsed._replace(path="/postgres"))
 
 
 async def create_test_db() -> None:
     """Create the test database if it does not exist."""
-    admin_url = "postgresql+asyncpg://postgres:password@localhost:5432/postgres"
     engine = create_async_engine(admin_url, isolation_level="AUTOCOMMIT")
     async with engine.connect() as conn:
         result = await conn.execute(
@@ -124,6 +125,16 @@ def mock_resend_emails() -> Generator[None]:
         patch("resend.Emails.send_async") as _mock_send_async,
     ):
         yield
+
+
+@pytest.fixture(autouse=True)
+def disable_limiter() -> Generator[None]:
+    """Globally disable the slowapi rate limiter for functional tests."""
+    from ai_trading_discipline_copilot.core.limiter import limiter
+
+    limiter.enabled = False
+    yield
+    limiter.enabled = True
 
 
 # Event listener to set is_verified=True on User instantiation if not explicitly passed.

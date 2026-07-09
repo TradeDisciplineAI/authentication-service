@@ -9,6 +9,7 @@ repos:
     rev: v2.1.0
     hooks:
       - id: mypy
+        exclude: ^alembic/
         additional_dependencies:
           - pydantic
           - pydantic-settings

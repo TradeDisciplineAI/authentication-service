@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     cookie_domain: str | None = None
     cookie_path: str = "/auth"
 
+    # Account lockout — brute-force protection
+    max_login_attempts: int = 5
+    lockout_duration_minutes: int = 15
+
     # Database
     database_url: SecretStr
     db_pool_size: int = 10
@@ -49,7 +53,7 @@ class Settings(BaseSettings):
     # Hosts
     # Restrict to known safe hosts by default — wildcard defeats TrustedHostMiddleware.
     # In production set ALLOWED_HOSTS=["yourdomain.com"] via environment variable.
-    allowed_hosts: list[str] = ["localhost", "127.0.0.1"]
+    allowed_hosts: list[str] = ["localhost", "127.0.0.1", "testserver"]
 
     # AI Provider
     ai_provider: str = "openai"
