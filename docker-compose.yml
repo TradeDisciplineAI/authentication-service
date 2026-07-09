@@ -22,7 +22,7 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - AI_MODEL=gpt-4o
 
-      - ALLOWED_ORIGINS=["http://localhost:3000","http://localhost:8000"]
+      - ALLOWED_ORIGINS=["http://localhost:3000","http://localhost:5173","http://localhost:8000"]
 
       - RESEND_API_KEY=${RESEND_API_KEY}
       - EMAIL_FROM=${EMAIL_FROM}

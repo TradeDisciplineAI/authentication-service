@@ -145,7 +145,7 @@ class EmailVerificationService:
     async def verify_email(
         db: AsyncSession,
         token: str,
-    ) -> None:
+    ) -> User:
         """Verify the user's email using the provided verification token.
 
         Validates the token, loads the user, sets is_verified=True on the user,
@@ -154,6 +154,9 @@ class EmailVerificationService:
         Args:
             db: The database session.
             token: The plain-text verification token.
+
+        Returns:
+            The verified User object.
 
         Raises:
             UnauthorizedException: If the token is invalid or expired.
@@ -172,6 +175,7 @@ class EmailVerificationService:
             "Successfully verified email for user ID: %s",
             user.id,
         )
+        return user
 
     @staticmethod
     async def cleanup_expired_tokens(

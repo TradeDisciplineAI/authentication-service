@@ -13,12 +13,14 @@ class VerifyEmailResponse(BaseModel):
     """Response for email verification."""
 
     message: str
+    access_token: str | None = None
+    token_type: str | None = None
 
 
 class ResendVerificationRequest(BaseModel):
     """Request to resend verification email."""
 
-    email: EmailStr
+    username_or_email: str
 
 
 class ResendVerificationResponse(BaseModel):
