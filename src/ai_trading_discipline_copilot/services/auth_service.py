@@ -41,12 +41,14 @@ class AuthService:
         """Authenticate a user using a username or email and password."""
 
         result = await db.execute(
-            select(User).where(
+            select(User)
+            .where(
                 or_(
                     User.username == username,
                     User.email == username,
                 )
             )
+            .with_for_update()
         )
 
         user = result.scalar_one_or_none()

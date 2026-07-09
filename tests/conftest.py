@@ -1,6 +1,10 @@
+import os
 from collections.abc import AsyncGenerator, Generator
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
+
+# Configure test-only allowed hosts before importing the FastAPI application.
+os.environ["ALLOWED_HOSTS"] = '["localhost", "127.0.0.1", "testserver"]'
 
 import pytest
 from httpx import ASGITransport, AsyncClient
