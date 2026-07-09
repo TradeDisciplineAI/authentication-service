@@ -83,7 +83,7 @@ async def test_google_callback_register_new_user(
         )
 
         assert response.status_code == 307
-        assert "token=" in response.headers["Location"]
+        assert "#token=" in response.headers["Location"]
         assert "refresh_token" in response.cookies
 
         # Verify user was created in the DB as verified and linked to Google
@@ -150,7 +150,7 @@ async def test_google_callback_link_existing_user(
         )
 
         assert response.status_code == 307
-        assert "token=" in response.headers["Location"]
+        assert "#token=" in response.headers["Location"]
         assert "refresh_token" in response.cookies
 
         # Verify Google ID was linked and user was verified
@@ -449,3 +449,100 @@ async def test_google_callback_incomplete_profile(client: AsyncClient) -> None:
 
         assert response.status_code == 401
         assert "incomplete" in response.json()["detail"]
+
+
+@pytest.mark.anyio
+async def test_google_callback_unverified_email(client: AsyncClient) -> None:
+    """Test Google callback fails if Google profile email is not verified."""
+    state_payload = {
+        "timestamp": datetime.now(UTC).timestamp(),
+        "nonce": uuid.uuid4().hex,
+    }
+    state_token = jwt.encode(
+        state_payload,
+        settings.secret_key.get_secret_value(),
+        algorithm=settings.algorithm,
+    )
+
+    mock_token_resp = MagicMock()
+    mock_token_resp.status_code = 200
+    mock_token_resp.json.return_value = {"access_token": "token"}
+
+    mock_userinfo_resp = MagicMock()
+    mock_userinfo_resp.status_code = 200
+    mock_userinfo_resp.json.return_value = {
+        "sub": "google-id-unverified",
+        "email": "unverified@example.com",
+        "email_verified": False,  # Unverified!
+    }
+
+    mock_client = AsyncMock()
+    mock_client.__aenter__.return_value = mock_client
+    mock_client.post.return_value = mock_token_resp
+    mock_client.get.return_value = mock_userinfo_resp
+
+    with patch(
+        "ai_trading_discipline_copilot.routers.auth.httpx.AsyncClient",
+        return_value=mock_client,
+    ):
+        response = await client.get(
+            "/auth/oauth2/google/callback",
+            params={"code": "auth-code", "state": state_token},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 401
+        assert "verified" in response.json()["detail"]
+
+
+@pytest.mark.anyio
+async def test_google_callback_empty_derived_username(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """Test Google callback registers user with google_user fallback
+    if the email results in an empty base username.
+    """
+    state_payload = {
+        "timestamp": datetime.now(UTC).timestamp(),
+        "nonce": uuid.uuid4().hex,
+    }
+    state_token = jwt.encode(
+        state_payload,
+        settings.secret_key.get_secret_value(),
+        algorithm=settings.algorithm,
+    )
+
+    mock_token_resp = MagicMock()
+    mock_token_resp.status_code = 200
+    mock_token_resp.json.return_value = {"access_token": "token"}
+
+    mock_userinfo_resp = MagicMock()
+    mock_userinfo_resp.status_code = 200
+    mock_userinfo_resp.json.return_value = {
+        "sub": "google-id-empty-username",
+        "email": "!!!@example.com",  # No alphanumeric/underscore characters
+        "email_verified": True,
+    }
+
+    mock_client = AsyncMock()
+    mock_client.__aenter__.return_value = mock_client
+    mock_client.post.return_value = mock_token_resp
+    mock_client.get.return_value = mock_userinfo_resp
+
+    with patch(
+        "ai_trading_discipline_copilot.routers.auth.httpx.AsyncClient",
+        return_value=mock_client,
+    ):
+        response = await client.get(
+            "/auth/oauth2/google/callback",
+            params={"code": "auth-code", "state": state_token},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 307
+        result = await db_session.execute(
+            select(User).where(User.email == "!!!@example.com")
+        )
+        user = result.scalar_one_or_none()
+        assert user is not None
+        assert user.username == "google_user"

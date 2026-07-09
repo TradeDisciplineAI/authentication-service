@@ -287,6 +287,8 @@ class AuthService:
                 base_username = "".join(
                     c for c in base_username if c.isalnum() or c in ("_", "-")
                 )
+                if not base_username:
+                    base_username = "google_user"
                 username = base_username
 
                 # Ensure username uniqueness

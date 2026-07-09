@@ -719,9 +719,13 @@ async def google_callback(
 
     google_id = user_info.get("sub")
     email = user_info.get("email")
+    email_verified = user_info.get("email_verified", False)
 
     if not google_id or not email:
         raise UnauthorizedException("Google user profile is incomplete")
+
+    if not email_verified:
+        raise UnauthorizedException("Google email account is not verified")
 
     # 4. Perform login or registration, attaching cookies directly to RedirectResponse
     redirect_url = f"{settings.frontend_url}/auth/callback"
@@ -741,7 +745,9 @@ async def google_callback(
         device_name=device_name,
     )
 
-    # 5. Append access token to redirect URL for frontend usage
+    # 5. Append access token to redirect URL for frontend usage as a fragment (#)
+    # This prevents the token from leaking in browser history, proxy logs,
+    # or Referer headers.
     token = local_tokens.access_token
-    redirect_response.headers["Location"] = f"{redirect_url}?token={token}"
+    redirect_response.headers["Location"] = f"{redirect_url}#token={token}"
     return redirect_response
