@@ -55,18 +55,14 @@ async def test_create_reset_token(
     test_user: User,
 ) -> None:
     """Test creating a password reset token in the database."""
-    plain_token = await PasswordResetService.create_reset_token(
-        db_session, test_user
-    )
+    plain_token = await PasswordResetService.create_reset_token(db_session, test_user)
     assert plain_token is not None
 
     token_hash = PasswordResetService.hash_token(plain_token)
 
     # Verify token is saved in DB
     result = await db_session.execute(
-        select(PasswordResetToken).where(
-            PasswordResetToken.token_hash == token_hash
-        )
+        select(PasswordResetToken).where(PasswordResetToken.token_hash == token_hash)
     )
     db_token = result.scalar_one_or_none()
     assert db_token is not None
@@ -93,17 +89,13 @@ async def test_create_reset_token_deletes_previous_unused(
 
     # First token should be deleted
     result_1 = await db_session.execute(
-        select(PasswordResetToken).where(
-            PasswordResetToken.token_hash == hash_1
-        )
+        select(PasswordResetToken).where(PasswordResetToken.token_hash == hash_1)
     )
     assert result_1.scalar_one_or_none() is None
 
     # Second token should exist
     result_2 = await db_session.execute(
-        select(PasswordResetToken).where(
-            PasswordResetToken.token_hash == hash_2
-        )
+        select(PasswordResetToken).where(PasswordResetToken.token_hash == hash_2)
     )
     assert result_2.scalar_one_or_none() is not None
 
@@ -119,9 +111,7 @@ async def test_create_reset_token_keeps_previous_used(
 
     # Mark first token as used
     result = await db_session.execute(
-        select(PasswordResetToken).where(
-            PasswordResetToken.token_hash == hash_1
-        )
+        select(PasswordResetToken).where(PasswordResetToken.token_hash == hash_1)
     )
     db_token_1 = result.scalar_one()
     db_token_1.used_at = datetime.now(UTC)
@@ -133,16 +123,12 @@ async def test_create_reset_token_keeps_previous_used(
 
     # Both tokens should exist
     result_1 = await db_session.execute(
-        select(PasswordResetToken).where(
-            PasswordResetToken.token_hash == hash_1
-        )
+        select(PasswordResetToken).where(PasswordResetToken.token_hash == hash_1)
     )
     assert result_1.scalar_one_or_none() is not None
 
     result_2 = await db_session.execute(
-        select(PasswordResetToken).where(
-            PasswordResetToken.token_hash == hash_2
-        )
+        select(PasswordResetToken).where(PasswordResetToken.token_hash == hash_2)
     )
     assert result_2.scalar_one_or_none() is not None
 
@@ -180,9 +166,7 @@ async def test_validate_token_expired(
 
     # Make token expired in the database
     result = await db_session.execute(
-        select(PasswordResetToken).where(
-            PasswordResetToken.token_hash == hash_val
-        )
+        select(PasswordResetToken).where(PasswordResetToken.token_hash == hash_val)
     )
     db_token = result.scalar_one()
     db_token.expires_at = datetime.now(UTC) - timedelta(seconds=1)
@@ -204,9 +188,7 @@ async def test_validate_token_already_used(
 
     # Make token used in the database
     result = await db_session.execute(
-        select(PasswordResetToken).where(
-            PasswordResetToken.token_hash == hash_val
-        )
+        select(PasswordResetToken).where(PasswordResetToken.token_hash == hash_val)
     )
     db_token = result.scalar_one()
     db_token.used_at = datetime.now(UTC)
@@ -251,13 +233,12 @@ async def test_reset_password_success(
 
     # Verify password was updated
     await db_session.refresh(test_user)
+    assert test_user.hashed_password is not None
     assert verify_password(NEW_TEST_PASSWORD, test_user.hashed_password)
 
     # Verify token was marked used
     result = await db_session.execute(
-        select(PasswordResetToken).where(
-            PasswordResetToken.token_hash == token_hash
-        )
+        select(PasswordResetToken).where(PasswordResetToken.token_hash == token_hash)
     )
     db_token = result.scalar_one()
     assert db_token.used_at is not None
@@ -357,9 +338,7 @@ async def test_forgot_password_existing_email(
 
         # Check database: reset token should have been created
         result = await db_session.execute(
-            select(PasswordResetToken).where(
-                PasswordResetToken.user_id == test_user.id
-            )
+            select(PasswordResetToken).where(PasswordResetToken.user_id == test_user.id)
         )
         token = result.scalar_one_or_none()
         assert token is not None
@@ -446,7 +425,6 @@ async def test_reset_password_endpoint_success(
     assert "access_token" in login_response_new.json()
 
 
-
 @pytest.mark.anyio
 async def test_reset_password_endpoint_invalid_token(
     client: AsyncClient,
@@ -472,9 +450,7 @@ async def test_reset_password_endpoint_expired_token(
 
     # Expire token in DB
     result = await db_session.execute(
-        select(PasswordResetToken).where(
-            PasswordResetToken.token_hash == token_hash
-        )
+        select(PasswordResetToken).where(PasswordResetToken.token_hash == token_hash)
     )
     db_token = result.scalar_one()
     db_token.expires_at = datetime.now(UTC) - timedelta(seconds=1)
@@ -500,9 +476,7 @@ async def test_reset_password_endpoint_already_used_token(
 
     # Use token in DB
     result = await db_session.execute(
-        select(PasswordResetToken).where(
-            PasswordResetToken.token_hash == token_hash
-        )
+        select(PasswordResetToken).where(PasswordResetToken.token_hash == token_hash)
     )
     db_token = result.scalar_one()
     db_token.used_at = datetime.now(UTC)
@@ -526,12 +500,15 @@ async def test_forgot_password_email_failure_logged(
 
     Verifies that the error is logged.
     """
-    with patch(
-        "ai_trading_discipline_copilot.services.email_service.EmailService.send_email",
-        side_effect=Exception("Resend API key invalid"),
-    ), patch(
-        "ai_trading_discipline_copilot.routers.auth.logger.exception"
-    ) as mock_log:
+    with (
+        patch(
+            "ai_trading_discipline_copilot.services.email_service.EmailService.send_email",
+            side_effect=Exception("Resend API key invalid"),
+        ),
+        patch(
+            "ai_trading_discipline_copilot.routers.auth.logger.exception"
+        ) as mock_log,
+    ):
         response = await client.post(
             "/auth/forgot-password",
             json={"email": test_user.email},
@@ -543,4 +520,3 @@ async def test_forgot_password_email_failure_logged(
         mock_log.assert_called_once()
         log_args = mock_log.call_args[0]
         assert "Failed to send email [type=password_reset]" in log_args[0]
-

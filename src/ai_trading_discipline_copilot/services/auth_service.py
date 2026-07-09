@@ -69,9 +69,13 @@ class AuthService:
                 user.lockout_until = None
                 await db.commit()
 
-        if user is None or not verify_password(
-            password,
-            user.hashed_password,
+        if (
+            user is None
+            or user.hashed_password is None
+            or not verify_password(
+                password,
+                user.hashed_password,
+            )
         ):
             if user is not None:
                 user.failed_login_attempts += 1
@@ -243,3 +247,112 @@ class AuthService:
                 )
 
         AuthService.delete_refresh_cookie(response)
+
+    @staticmethod
+    async def login_with_google(
+        db: AsyncSession,
+        google_id: str,
+        email: str,
+        response: Response,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
+        device_name: str | None = None,
+    ) -> Token:
+        """Log in or register a user using Google OAuth2 credentials."""
+
+        # 1. Try to find user by google_id
+        result = await db.execute(
+            select(User).where(User.google_id == google_id).with_for_update()
+        )
+        user = result.scalar_one_or_none()
+
+        if user is None:
+            # 2. Try to find user by email
+            result = await db.execute(
+                select(User).where(User.email == email).with_for_update()
+            )
+            user = result.scalar_one_or_none()
+
+            if user is not None:
+                # Link Google account to existing user
+                user.google_id = google_id
+                # Google email is trusted and verified
+                user.is_verified = True
+                await db.commit()
+                logger.info("Linked Google ID to existing user email: '%s'", email)
+            else:
+                # 3. Register a new user
+                # Create a clean username from email
+                base_username = email.split("@")[0][:40]
+                base_username = "".join(
+                    c for c in base_username if c.isalnum() or c in ("_", "-")
+                )
+                username = base_username
+
+                # Ensure username uniqueness
+                suffix = 1
+                while True:
+                    dup_result = await db.execute(
+                        select(User).where(User.username == username)
+                    )
+                    if dup_result.scalar_one_or_none() is None:
+                        break
+                    username = f"{base_username[:35]}_{suffix}"
+                    suffix += 1
+
+                user = User(
+                    username=username,
+                    email=email,
+                    google_id=google_id,
+                    hashed_password=None,  # No local password
+                    is_verified=True,  # Google is verified
+                )
+                db.add(user)
+                await db.commit()
+                await db.refresh(user)
+                logger.info("Registered new user '%s' via Google OAuth2", username)
+
+        # Check account status (e.g. is_active)
+        if not user.is_active:
+            logger.warning(
+                "Blocked Google login attempt for inactive user: '%s'",
+                user.username,
+            )
+            raise ForbiddenException("User account is disabled")
+
+        # Successful login — reset lockout counter
+        if user.failed_login_attempts > 0:
+            user.failed_login_attempts = 0
+            user.lockout_until = None
+            await db.commit()
+
+        # Issue tokens
+        access_token, refresh_token, refresh_jti = AuthService._create_tokens(
+            user,
+        )
+
+        await RefreshTokenService.create_session(
+            db=db,
+            user=user,
+            token_hash=hash_refresh_token(refresh_token),
+            jti=refresh_jti,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            device_name=device_name,
+        )
+
+        AuthService.set_refresh_cookie(
+            response=response,
+            refresh_token=refresh_token,
+        )
+
+        logger.info(
+            "User '%s' logged in successfully via Google. IP: %s, Device: %s",
+            user.username,
+            ip_address,
+            device_name,
+        )
+
+        return Token(
+            access_token=access_token,
+        )
