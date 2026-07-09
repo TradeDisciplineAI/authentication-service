@@ -1,7 +1,10 @@
 import logging
 import uuid
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Annotated
 
+import httpx
+import jwt
 from fastapi import (
     APIRouter,
     BackgroundTasks,
@@ -10,6 +13,7 @@ from fastapi import (
     Response,
     status,
 )
+from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,6 +24,7 @@ from ai_trading_discipline_copilot.core.dependencies import (
     get_db,
 )
 from ai_trading_discipline_copilot.core.exceptions import (
+    AppException,
     ForbiddenException,
     NotFoundException,
     UnauthorizedException,
@@ -615,3 +620,136 @@ async def resend_verification(
         )
 
     return ResendVerificationResponse(message="Verification email sent.")
+
+
+@router.get("/oauth2/google/login")
+async def google_login(request: Request) -> RedirectResponse:
+    """Redirect to Google's OAuth2 consent page."""
+    if not settings.google_client_id:
+        raise AppException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Google OAuth2 client ID is not configured.",
+        )
+
+    # Generate a secure state token signed with the app's secret key
+    state_payload = {
+        "timestamp": datetime.now(UTC).timestamp(),
+        "nonce": uuid.uuid4().hex,
+    }
+    state_token = jwt.encode(
+        state_payload,
+        settings.secret_key.get_secret_value(),
+        algorithm=settings.algorithm,
+    )
+
+    google_auth_url = (
+        "https://accounts.google.com/o/oauth2/v2/auth"
+        f"?client_id={settings.google_client_id}"
+        f"&redirect_uri={request.url_for('google_callback')}"
+        "&response_type=code"
+        "&scope=openid%20email%20profile"
+        f"&state={state_token}"
+    )
+    return RedirectResponse(url=google_auth_url)
+
+
+@router.get("/oauth2/google/callback", name="google_callback")
+async def google_callback(
+    request: Request,
+    code: str,
+    state: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> RedirectResponse:
+    """Handle the Google OAuth2 callback.
+
+    Exchanges authorization code for access token, fetches profile,
+    registers or logs in user, and redirects browser to frontend URL.
+    """
+    if not settings.google_client_id or not settings.google_client_secret:
+        raise AppException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Google OAuth2 credentials are not configured.",
+        )
+
+    # 1. Verify state token signature and expiration
+    try:
+        payload = jwt.decode(
+            state,
+            settings.secret_key.get_secret_value(),
+            algorithms=[settings.algorithm],
+        )
+        if datetime.now(UTC).timestamp() - payload.get("timestamp", 0) > 600:
+            raise UnauthorizedException("OAuth state token has expired")
+    except jwt.PyJWTError as err:
+        raise UnauthorizedException("Invalid OAuth state token") from err
+
+    # 2. Exchange authorization code for token
+    async with httpx.AsyncClient() as client:
+        token_response = await client.post(
+            "https://oauth2.googleapis.com/token",
+            data={
+                "code": code,
+                "client_id": settings.google_client_id,
+                "client_secret": settings.google_client_secret.get_secret_value(),
+                "redirect_uri": str(request.url_for("google_callback")),
+                "grant_type": "authorization_code",
+            },
+        )
+        if token_response.status_code != 200:
+            logger.error("Google token exchange failed: %s", token_response.text)
+            raise UnauthorizedException(
+                "Failed to exchange authorization code with Google"
+            )
+
+        tokens = token_response.json()
+        access_token = tokens.get("access_token")
+        if not access_token:
+            raise UnauthorizedException("Failed to retrieve access token from Google")
+
+        # 3. Fetch user profile from Google
+        userinfo_response = await client.get(
+            "https://www.googleapis.com/oauth2/v3/userinfo",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        if userinfo_response.status_code != 200:
+            logger.error("Google userinfo request failed: %s", userinfo_response.text)
+            raise UnauthorizedException("Failed to fetch user profile from Google")
+
+        user_info = userinfo_response.json()
+
+    google_id = user_info.get("sub")
+    email = user_info.get("email")
+    email_verified = user_info.get("email_verified", False)
+
+    if not google_id or not email:
+        raise UnauthorizedException("Google user profile is incomplete")
+
+    if not email_verified:
+        raise UnauthorizedException("Google email account is not verified")
+
+    # 4. Perform login or registration, attaching cookies directly to RedirectResponse
+    redirect_url = f"{settings.frontend_url}/auth/callback"
+    redirect_response = RedirectResponse(url=redirect_url)
+
+    ip_address = request.client.host if request.client else None
+    user_agent = request.headers.get("user-agent")
+    device_name = parse_device_name(user_agent)
+
+    local_tokens = await AuthService.login_with_google(
+        db=db,
+        google_id=google_id,
+        email=email,
+        response=redirect_response,
+        ip_address=ip_address,
+        user_agent=user_agent,
+        device_name=device_name,
+    )
+
+    # 5. Append access token to redirect URL for frontend usage as a fragment (#)
+    # Fragments are NOT sent to the server in HTTP requests, preventing token
+    # leakage in proxy/server logs and Referer headers. However, fragments are
+    # still visible in the browser address bar. The frontend should clear the
+    # hash immediately after reading the token (e.g. history.replaceState).
+    token = local_tokens.access_token
+    redirect_response.headers["Location"] = f"{redirect_url}#token={token}"
+    return redirect_response

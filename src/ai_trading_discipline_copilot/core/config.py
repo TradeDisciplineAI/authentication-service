@@ -60,6 +60,10 @@ class Settings(BaseSettings):
     openai_api_key: SecretStr = SecretStr("")
     ai_model: str = "gpt-4o"
 
+    # Google OAuth2
+    google_client_id: str | None = None
+    google_client_secret: SecretStr | None = None
+
     # Email
     resend_api_key: SecretStr
     email_from: str
