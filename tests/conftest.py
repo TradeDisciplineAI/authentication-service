@@ -1,8 +1,9 @@
 from collections.abc import AsyncGenerator, Generator
+from typing import Any
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import text
+from sqlalchemy import event, text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -14,6 +15,7 @@ from ai_trading_discipline_copilot.core.config import get_settings
 from ai_trading_discipline_copilot.core.database import Base
 from ai_trading_discipline_copilot.core.dependencies import get_db
 from ai_trading_discipline_copilot.main import app
+from ai_trading_discipline_copilot.models.user import User
 
 settings = get_settings()
 
@@ -116,18 +118,19 @@ async def client(
 def mock_resend_emails() -> Generator[None]:
     """Globally mock resend email calls during tests to prevent API key errors."""
     from unittest.mock import patch
-    with patch("resend.Emails.send") as mock_send, patch("resend.Emails.send_async") as mock_send_async:
-        yield mock_send
+
+    with (
+        patch("resend.Emails.send") as _mock_send,
+        patch("resend.Emails.send_async") as _mock_send_async,
+    ):
+        yield
 
 
 # Event listener to set is_verified=True on User instantiation if not explicitly passed.
 # This prevents existing tests from failing since email verification wasn't present.
-from sqlalchemy import event
-from ai_trading_discipline_copilot.models.user import User
 
 
 @event.listens_for(User, "init")
-def receive_init(target, args, kwargs) -> None:
+def receive_init(target: Any, args: Any, kwargs: dict[str, Any]) -> None:
     if "is_verified" not in kwargs:
         kwargs["is_verified"] = True
-

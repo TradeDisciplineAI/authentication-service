@@ -91,11 +91,24 @@ def parse_device_name(user_agent: str | None) -> str:
 
 
 async def run_cleanup_task() -> None:
-    """Background task to clean up expired sessions using a fresh DB session."""
+    """Clean up expired sessions and tokens using a fresh DB session."""
     from ai_trading_discipline_copilot.core.database import AsyncSessionFactory
 
     async with AsyncSessionFactory() as db:
-        await RefreshTokenService.cleanup_expired_sessions(db)
+        try:
+            await RefreshTokenService.cleanup_expired_sessions(db)
+        except Exception:
+            logger.exception("Failed to clean up expired refresh token sessions")
+
+        try:
+            await EmailVerificationService.cleanup_expired_tokens(db)
+        except Exception:
+            logger.exception("Failed to clean up expired email verification tokens")
+
+        try:
+            await PasswordResetService.cleanup_expired_tokens(db)
+        except Exception:
+            logger.exception("Failed to clean up expired password reset tokens")
 
 
 @router.post(
@@ -500,9 +513,7 @@ async def forgot_password(
     and sends a reset email in the background. Always returns a generic success
     message to prevent account enumeration.
     """
-    result = await db.execute(
-        select(User).where(User.email == request_data.email)
-    )
+    result = await db.execute(select(User).where(User.email == request_data.email))
     user = result.scalar_one_or_none()
 
     if user:
@@ -518,8 +529,7 @@ async def forgot_password(
 
     return ForgotPasswordResponse(
         message=(
-            "If an account with that email exists, "
-            "a password reset link has been sent."
+            "If an account with that email exists, a password reset link has been sent."
         )
     )
 
@@ -544,13 +554,9 @@ async def reset_password(
             new_password=request_data.new_password,
         )
     except UnauthorizedException as err:
-        raise UnauthorizedException(
-            "Invalid or expired password reset token"
-        ) from err
+        raise UnauthorizedException("Invalid or expired password reset token") from err
 
-    return ResetPasswordResponse(
-        message="Password reset successful."
-    )
+    return ResetPasswordResponse(message="Password reset successful.")
 
 
 @router.post(
@@ -570,9 +576,7 @@ async def verify_email(
             "Invalid or expired email verification token"
         ) from err
 
-    return VerifyEmailResponse(
-        message="Email verified successfully."
-    )
+    return VerifyEmailResponse(message="Email verified successfully.")
 
 
 @router.post(
@@ -589,18 +593,12 @@ async def resend_verification(
 
     Always returns a generic success response to prevent account enumeration.
     """
-    result = await db.execute(
-        select(User).where(User.email == request_data.email)
-    )
+    result = await db.execute(select(User).where(User.email == request_data.email))
     user = result.scalar_one_or_none()
 
     if user and not user.is_verified:
-        plain_token = await EmailVerificationService.create_verification_token(
-            db, user
-        )
-        verification_url = (
-            f"{settings.frontend_url}/verify-email?token={plain_token}"
-        )
+        plain_token = await EmailVerificationService.create_verification_token(db, user)
+        verification_url = f"{settings.frontend_url}/verify-email?token={plain_token}"
         background_tasks.add_task(
             send_verification_email_task,
             user_id=user.id,
@@ -608,8 +606,4 @@ async def resend_verification(
             verification_url=verification_url,
         )
 
-    return ResendVerificationResponse(
-        message="Verification email sent."
-    )
-
-
+    return ResendVerificationResponse(message="Verification email sent.")
