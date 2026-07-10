@@ -350,7 +350,7 @@ async def test_forgot_password_existing_email(
         assert call_kwargs["to"] == test_user.email
         assert "Reset your password" in call_kwargs["subject"]
         assert "Reset Password" in call_kwargs["html"]
-        assert "/reset-password?token=" in call_kwargs["html"]
+        assert "/#/reset-password/" in call_kwargs["html"]
 
 
 @pytest.mark.anyio
