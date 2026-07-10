@@ -590,39 +590,50 @@ async def verify_email(
         ) from err
 
     # Automatically log the user in
-    ip_address = request.client.host if request.client else None
-    user_agent = request.headers.get("user-agent")
-    device_name = parse_device_name(user_agent)
+    try:
+        ip_address = request.client.host if request.client else None
+        user_agent = request.headers.get("user-agent")
+        device_name = parse_device_name(user_agent)
 
-    access_token, refresh_token, refresh_jti = AuthService._create_tokens(user)
+        access_token, refresh_token, refresh_jti = AuthService._create_tokens(user)
 
-    await RefreshTokenService.create_session(
-        db=db,
-        user=user,
-        token_hash=hash_refresh_token(refresh_token),
-        jti=refresh_jti,
-        ip_address=ip_address,
-        user_agent=user_agent,
-        device_name=device_name,
-    )
+        await RefreshTokenService.create_session(
+            db=db,
+            user=user,
+            token_hash=hash_refresh_token(refresh_token),
+            jti=refresh_jti,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            device_name=device_name,
+        )
 
-    AuthService.set_refresh_cookie(
-        response=response,
-        refresh_token=refresh_token,
-    )
+        AuthService.set_refresh_cookie(
+            response=response,
+            refresh_token=refresh_token,
+        )
 
-    logger.info(
-        "User '%s' verified and automatically logged in. IP: %s, Device: %s",
-        user.username,
-        ip_address,
-        device_name,
-    )
+        logger.info(
+            "User '%s' verified and automatically logged in. IP: %s, Device: %s",
+            user.username,
+            ip_address,
+            device_name,
+        )
 
-    return VerifyEmailResponse(
-        message="Email verified successfully.",
-        access_token=access_token,
-        token_type="bearer",
-    )
+        return VerifyEmailResponse(
+            message="Email verified successfully.",
+            access_token=access_token,
+            token_type="bearer",
+        )
+    except Exception:
+        logger.exception(
+            "Email verified successfully for user '%s', but automatic login failed.",
+            user.username,
+        )
+        return VerifyEmailResponse(
+            message="Email verified successfully.",
+            access_token=None,
+            token_type=None,
+        )
 
 
 @router.post(
@@ -770,7 +781,7 @@ async def google_callback(
         raise UnauthorizedException("Google email account is not verified")
 
     # 4. Perform login or registration, attaching cookies directly to RedirectResponse
-    redirect_url = f"{settings.frontend_url}/auth/callback"
+    redirect_url = f"{settings.frontend_url}/#/auth/callback"
     redirect_response = RedirectResponse(url=redirect_url)
 
     ip_address = request.client.host if request.client else None
