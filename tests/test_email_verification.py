@@ -93,6 +93,9 @@ async def test_verify_email_success(
     )
     assert response.status_code == 200
     assert response.json()["message"] == "Email verified successfully."
+    assert "access_token" in response.json()
+    assert response.json()["token_type"] == "bearer"
+    assert "refresh_token" in response.cookies
 
     # Check database changes
     await db_session.refresh(unverified_user)
@@ -231,7 +234,7 @@ async def test_resend_verification_success(
     ) as mock_send:
         response = await client.post(
             "/auth/resend-verification",
-            json={"email": unverified_user.email},
+            json={"username_or_email": unverified_user.email},
         )
         assert response.status_code == 200
         assert response.json()["message"] == "Verification email sent."
@@ -266,7 +269,7 @@ async def test_resend_verification_already_verified(
     ) as mock_send:
         response = await client.post(
             "/auth/resend-verification",
-            json={"email": unverified_user.email},
+            json={"username_or_email": unverified_user.email},
         )
         assert response.status_code == 200
         assert response.json()["message"] == "Verification email sent."
@@ -285,13 +288,32 @@ async def test_resend_verification_non_existing_email(
     ) as mock_send:
         response = await client.post(
             "/auth/resend-verification",
-            json={"email": "notfound@example.com"},
+            json={"username_or_email": "notfound@example.com"},
         )
         assert response.status_code == 200
         assert response.json()["message"] == "Verification email sent."
 
         # Verify no email was sent
         mock_send.assert_not_called()
+
+
+@pytest.mark.anyio
+async def test_resend_verification_by_username(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    unverified_user: User,
+) -> None:
+    """Test resending verification link using username instead of email."""
+    with patch(
+        "ai_trading_discipline_copilot.services.email_service.EmailService.send_verification_email"
+    ) as mock_send:
+        response = await client.post(
+            "/auth/resend-verification",
+            json={"username_or_email": unverified_user.username},
+        )
+        assert response.status_code == 200
+        assert response.json()["message"] == "Verification email sent."
+        mock_send.assert_called_once()
 
 
 @pytest.mark.anyio
@@ -382,4 +404,28 @@ async def test_register_verification_email_failure_logged(
         mock_log.assert_called_once()
         log_args = mock_log.call_args[0]
         assert "Failed to send email [type=verification]" in log_args[0]
+
+
+@pytest.mark.anyio
+async def test_email_verification_service_direct(
+    db_session: AsyncSession,
+) -> None:
+    """Test EmailVerificationService.verify_email directly in Python to verify logic and hit coverage."""
+    from ai_trading_discipline_copilot.core.security import hash_password
+    user = User(
+        username="directuser",
+        email="direct@example.com",
+        hashed_password=hash_password("Pass123!"),
+        is_verified=False,
+    )
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.refresh(user)
+
+    plain = await EmailVerificationService.create_verification_token(
+        db_session, user
+    )
+    verified_user = await EmailVerificationService.verify_email(db_session, plain)
+    assert verified_user.id == user.id
+    assert verified_user.is_verified is True
 
