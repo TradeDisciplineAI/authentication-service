@@ -529,7 +529,7 @@ async def forgot_password(
 
     if user:
         plain_token = await PasswordResetService.create_reset_token(db, user)
-        reset_url = f"{settings.frontend_url}/reset-password?token={plain_token}"
+        reset_url = f"{settings.frontend_url}/#/reset-password/{plain_token}"
         background_tasks.add_task(
             send_reset_email_task,
             user_id=user.id,
