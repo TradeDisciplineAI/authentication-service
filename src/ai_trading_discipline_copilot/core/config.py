@@ -53,7 +53,7 @@ class Settings(BaseSettings):
     # Hosts
     # Restrict to known safe hosts by default — wildcard defeats TrustedHostMiddleware.
     # In production set ALLOWED_HOSTS=["yourdomain.com"] via environment variable.
-    allowed_hosts: list[str] = ["localhost", "127.0.0.1"]
+    allowed_hosts: list[str] = ["localhost", "127.0.0.1", "0.0.0.0"]
 
     # AI Provider
     ai_provider: str = "openai"
@@ -69,10 +69,19 @@ class Settings(BaseSettings):
     email_from: str
     frontend_url: str
 
+
+
+    # finhub
+    finnhub_api_key: SecretStr
+    # Redis
+    redis_url: str = "redis://redis:6379/0"
+
     # CORS
     allowed_origins: list[str] = [
         "http://localhost:3000",
         "http://localhost:8000",
+        "http://localhost:5175"
+        
     ]
 
     @field_validator("secret_key")
@@ -117,3 +126,4 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+# Finnhub
