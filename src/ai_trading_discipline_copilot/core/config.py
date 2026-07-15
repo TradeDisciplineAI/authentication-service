@@ -69,11 +69,20 @@ class Settings(BaseSettings):
     email_from: str
     frontend_url: str
 
+
+
+    # finhub
+    finnhub_api_key: SecretStr | None = None
+    # Redis
+    redis_url: str = "redis://redis:6379/0"
+
     # CORS
     allowed_origins: list[str] = [
         "http://localhost:3000",
         "http://localhost:5173",
         "http://localhost:8000",
+        "http://localhost:5175"
+        
     ]
 
     @field_validator("secret_key")
@@ -118,3 +127,4 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+# Finnhub
