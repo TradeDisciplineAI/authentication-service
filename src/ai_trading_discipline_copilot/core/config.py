@@ -53,7 +53,7 @@ class Settings(BaseSettings):
     # Hosts
     # Restrict to known safe hosts by default — wildcard defeats TrustedHostMiddleware.
     # In production set ALLOWED_HOSTS=["yourdomain.com"] via environment variable.
-    allowed_hosts: list[str] = ["localhost", "127.0.0.1", "0.0.0.0"]
+    allowed_hosts: list[str] = ["localhost", "127.0.0.1"]
 
     # AI Provider
     ai_provider: str = "openai"
@@ -72,7 +72,7 @@ class Settings(BaseSettings):
 
 
     # finhub
-    finnhub_api_key: SecretStr
+    finnhub_api_key: SecretStr | None = None
     # Redis
     redis_url: str = "redis://redis:6379/0"
 

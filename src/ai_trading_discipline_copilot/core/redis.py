@@ -61,8 +61,16 @@ def get_market_analysis():
     gainers.sort(key=lambda x: x["percent_change"], reverse=True)
     losers.sort(key=lambda x: x["percent_change"])
     
+    last_updated = datetime.utcnow().isoformat()
+    analysis_data = redis_client.get("market:analysis")
+    if analysis_data:
+        try:
+            last_updated = json.loads(analysis_data).get("last_updated", last_updated)
+        except Exception:
+            pass
+            
     return {
         "gainers": gainers,
         "losers": losers,
-        "last_updated": datetime.utcnow().isoformat()
+        "last_updated": last_updated
     }

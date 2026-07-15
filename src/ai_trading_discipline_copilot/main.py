@@ -26,9 +26,15 @@ async def lifespan(app: FastAPI):
     ws_service = YFinanceWebSocketService()
     # Start the websocket listener in the background
     task = asyncio.create_task(ws_service.connect_and_listen())
-    yield
-    # Cancel the task on shutdown
-    task.cancel()
+    try:
+        yield
+    finally:
+        # Cancel the task on shutdown
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
 settings = get_settings()
 
 

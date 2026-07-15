@@ -10,9 +10,9 @@ class YFinanceWebSocketService:
         self.symbols = self.service.WATCHLIST
 
     async def connect_and_listen(self):
-        print(f"==================================================")
+        print("==================================================")
         print(f"[YFinance WS Sim] Started! Polling {len(self.symbols)} symbols...")
-        print(f"==================================================")
+        print("==================================================")
         
         while True:
             try:
@@ -21,7 +21,8 @@ class YFinanceWebSocketService:
                 quotes_map = await self._fetch_all_quotes()
                 
                 for symbol, quote in quotes_map.items():
-                    if not quote: continue
+                    if not quote:
+                        continue
                     new_price = quote.current_price
                     timestamp = datetime.utcnow().isoformat()
                     

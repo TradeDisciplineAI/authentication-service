@@ -17,7 +17,7 @@ class ConnectionManager:
     async def broadcast(self, message: dict):
         # Convert dict to JSON string
         json_message = json.dumps(message)
-        for connection in self.active_connections:
+        for connection in list(self.active_connections):
             try:
                 await connection.send_text(json_message)
             except Exception:

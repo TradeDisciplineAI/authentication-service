@@ -43,8 +43,12 @@ class YFinanceService:
             currency=getattr(info, "currency", "USD"),
         )
 
-    async def get_stock_quote(self, symbol: str) -> StockQuote:
-        return await asyncio.to_thread(self._fetch_quote_sync, symbol)
+    async def get_stock_quote(self, symbol: str) -> StockQuote | None:
+        try:
+            return await asyncio.to_thread(self._fetch_quote_sync, symbol)
+        except Exception as e:
+            print(f"Failed to fetch quote data for {symbol}: {e}")
+            return None
 
     def _fetch_gainers_sync(self) -> list[GainerStock]:
         gainers = []
