@@ -30,7 +30,10 @@ from ai_trading_discipline_copilot.core.exceptions import (
     UnauthorizedException,
 )
 from ai_trading_discipline_copilot.core.limiter import limiter
-from ai_trading_discipline_copilot.core.security import decode_refresh_token, hash_refresh_token
+from ai_trading_discipline_copilot.core.security import (
+    decode_refresh_token,
+    hash_refresh_token,
+)
 from ai_trading_discipline_copilot.models.user import User
 from ai_trading_discipline_copilot.schemas.email_verification import (
     ResendVerificationRequest,

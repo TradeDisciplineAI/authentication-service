@@ -94,7 +94,7 @@ async def test_verify_email_success(
     assert response.status_code == 200
     assert response.json()["message"] == "Email verified successfully."
     assert "access_token" in response.json()
-    assert response.json()["token_type"] == "bearer"
+    assert response.json()["token_type"] == "bearer"  # noqa: S105
     assert "refresh_token" in response.cookies
 
     # Check database changes
@@ -410,7 +410,10 @@ async def test_register_verification_email_failure_logged(
 async def test_email_verification_service_direct(
     db_session: AsyncSession,
 ) -> None:
-    """Test EmailVerificationService.verify_email directly in Python to verify logic and hit coverage."""
+    """Test EmailVerificationService.verify_email directly in Python.
+
+    Verify logic and hit coverage.
+    """
     from ai_trading_discipline_copilot.core.security import hash_password
     user = User(
         username="directuser",
