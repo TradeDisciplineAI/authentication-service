@@ -281,6 +281,9 @@ async def test_refresh_token_reuse_detection(
     assert rotate_res.status_code == 200
 
     # 4. Present Session A again (Reuse Detection!)
+    # Restore token_a in client.cookies to explicitly present the revoked original token
+    client.cookies.clear()
+    client.cookies.set("refresh_token", token_a)
     response = await client.post("/auth/refresh")
     assert response.status_code == 401
     assert "revoked due to reuse detection" in response.json()["detail"].lower()
