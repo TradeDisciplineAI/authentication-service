@@ -112,6 +112,19 @@ uv run ruff check src tests
 uv run mypy src
 ```
 
+### Pre-commit Hooks
+We use `pre-commit` to automate fast validation checks (formatting, linting, basic file checks, and type-checking) locally before every commit.
+
+To set up the pre-commit git hooks:
+```bash
+uv run pre-commit install
+```
+
+To manually trigger the pre-commit check on all files:
+```bash
+uv run pre-commit run --all-files
+```
+
 ## 🗄️ Creating a New Migration
 ```bash
 # After changing a model:
@@ -126,4 +139,4 @@ uv run alembic upgrade head
 MIT
 # ai-trading-discipline-copilot
 
-# Testing-integration 
+# Testing-integration
