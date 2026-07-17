@@ -41,12 +41,27 @@ alembic/                ← Database migrations
 - PostgreSQL running locally (or via Docker)
 - [uv](https://docs.astral.sh/uv/) installed
 
-### 2. Clone & Install
+### 2. Setup Development Environment
+Clone the repository and run the setup script to automatically configure your environment:
+
+**Windows (PowerShell)**:
+```powershell
+git clone <repo-url>
+cd ai-trading-discipline-copilot
+.\scripts\setup.ps1
+```
+
+**Linux / macOS (Bash)**:
 ```bash
 git clone <repo-url>
 cd ai-trading-discipline-copilot
-uv sync --all-groups
+./scripts/setup.sh
 ```
+
+The setup script performs the following onboarding steps automatically:
+- Synchronizes project dependencies via `uv`.
+- Installs the Git pre-commit hooks (only if they are not already installed).
+- Validates the local development environment checks (linting, formatting, type checking).
 
 ### 3. Configure Environment
 ```bash
