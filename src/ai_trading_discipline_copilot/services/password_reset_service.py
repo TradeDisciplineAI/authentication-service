@@ -88,6 +88,7 @@ class PasswordResetService:
         db.add(reset_token)
         await db.commit()
 
+        # nosemgrep - logs only user ID and timestamp, no token values
         logger.info(
             "Created password reset token for user ID: %s expiring at %s",
             user.id,
@@ -130,10 +131,12 @@ class PasswordResetService:
             raise UnauthorizedException("Invalid or expired password reset token")
 
         if db_token.used_at is not None:
+            # nosemgrep - logs usage timestamp metadata only, no token values
             logger.warning("Password reset token already used at %s.", db_token.used_at)
             raise UnauthorizedException("Invalid or expired password reset token")
 
         if db_token.expires_at <= datetime.now(UTC):
+            # nosemgrep - logs expiration timestamp metadata only, no token values
             logger.warning("Password reset token expired at %s.", db_token.expires_at)
             raise UnauthorizedException("Invalid or expired password reset token")
 
@@ -173,6 +176,7 @@ class PasswordResetService:
         await RefreshTokenService.revoke_all_for_user(db, user.id)
 
         await db.commit()
+        # nosemgrep - logs only user ID on reset, no passwords or tokens
         logger.info(
             "Successfully reset password and revoked all sessions for user ID: %s",
             user.id,
