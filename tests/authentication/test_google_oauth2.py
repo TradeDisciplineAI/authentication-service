@@ -34,6 +34,10 @@ async def test_google_login_redirect(client: AsyncClient) -> None:
     assert "scope=openid%20email%20profile" in location
     assert "state=" in location
 
+    # Verify client cookie binding
+    assert "oauth_state" in response.cookies
+    assert response.cookies["oauth_state"] != ""
+
 
 @pytest.mark.anyio
 async def test_google_callback_register_new_user(
@@ -76,6 +80,9 @@ async def test_google_callback_register_new_user(
         "ai_trading_discipline_copilot.routers.auth.httpx.AsyncClient",
         return_value=mock_client,
     ):
+        client.cookies.set(
+            "oauth_state", state_token, domain="testserver.local", path="/auth"
+        )
         response = await client.get(
             "/auth/oauth2/google/callback",
             params={"code": "auth-code", "state": state_token},
@@ -143,6 +150,9 @@ async def test_google_callback_link_existing_user(
         "ai_trading_discipline_copilot.routers.auth.httpx.AsyncClient",
         return_value=mock_client,
     ):
+        client.cookies.set(
+            "oauth_state", state_token, domain="testserver.local", path="/auth"
+        )
         response = await client.get(
             "/auth/oauth2/google/callback",
             params={"code": "auth-code", "state": state_token},
@@ -162,6 +172,9 @@ async def test_google_callback_link_existing_user(
 @pytest.mark.anyio
 async def test_google_callback_invalid_state(client: AsyncClient) -> None:
     """Test Google callback fails if state token is invalid."""
+    client.cookies.set(
+        "oauth_state", "invalid-state-token", domain="testserver.local", path="/auth"
+    )
     response = await client.get(
         "/auth/oauth2/google/callback",
         params={"code": "auth-code", "state": "invalid-state-token"},
@@ -185,6 +198,9 @@ async def test_google_callback_expired_state(client: AsyncClient) -> None:
         algorithm=settings.algorithm,
     )
 
+    client.cookies.set(
+        "oauth_state", state_token, domain="testserver.local", path="/auth"
+    )
     response = await client.get(
         "/auth/oauth2/google/callback",
         params={"code": "auth-code", "state": state_token},
@@ -241,6 +257,9 @@ async def test_google_callback_inactive_user(
         "ai_trading_discipline_copilot.routers.auth.httpx.AsyncClient",
         return_value=mock_client,
     ):
+        client.cookies.set(
+            "oauth_state", state_token, domain="testserver.local", path="/auth"
+        )
         response = await client.get(
             "/auth/oauth2/google/callback",
             params={"code": "auth-code", "state": state_token},
@@ -249,6 +268,10 @@ async def test_google_callback_inactive_user(
 
         assert response.status_code == 403
         assert response.json()["detail"] == "User account is disabled"
+
+        # Verify database is not mutated (google_id remains unset)
+        await db_session.refresh(inactive_user)
+        assert inactive_user.google_id is None
 
 
 @pytest.mark.anyio
@@ -299,6 +322,9 @@ async def test_google_callback_resets_lockout(
         "ai_trading_discipline_copilot.routers.auth.httpx.AsyncClient",
         return_value=mock_client,
     ):
+        client.cookies.set(
+            "oauth_state", state_token, domain="testserver.local", path="/auth"
+        )
         response = await client.get(
             "/auth/oauth2/google/callback",
             params={"code": "auth-code", "state": state_token},
@@ -358,6 +384,9 @@ async def test_google_callback_token_exchange_failure(client: AsyncClient) -> No
         "ai_trading_discipline_copilot.routers.auth.httpx.AsyncClient",
         return_value=mock_client,
     ):
+        client.cookies.set(
+            "oauth_state", state_token, domain="testserver.local", path="/auth"
+        )
         response = await client.get(
             "/auth/oauth2/google/callback",
             params={"code": "auth-code", "state": state_token},
@@ -398,6 +427,9 @@ async def test_google_callback_userinfo_failure(client: AsyncClient) -> None:
         "ai_trading_discipline_copilot.routers.auth.httpx.AsyncClient",
         return_value=mock_client,
     ):
+        client.cookies.set(
+            "oauth_state", state_token, domain="testserver.local", path="/auth"
+        )
         response = await client.get(
             "/auth/oauth2/google/callback",
             params={"code": "auth-code", "state": state_token},
@@ -441,6 +473,9 @@ async def test_google_callback_incomplete_profile(client: AsyncClient) -> None:
         "ai_trading_discipline_copilot.routers.auth.httpx.AsyncClient",
         return_value=mock_client,
     ):
+        client.cookies.set(
+            "oauth_state", state_token, domain="testserver.local", path="/auth"
+        )
         response = await client.get(
             "/auth/oauth2/google/callback",
             params={"code": "auth-code", "state": state_token},
@@ -485,6 +520,9 @@ async def test_google_callback_unverified_email(client: AsyncClient) -> None:
         "ai_trading_discipline_copilot.routers.auth.httpx.AsyncClient",
         return_value=mock_client,
     ):
+        client.cookies.set(
+            "oauth_state", state_token, domain="testserver.local", path="/auth"
+        )
         response = await client.get(
             "/auth/oauth2/google/callback",
             params={"code": "auth-code", "state": state_token},
@@ -533,6 +571,9 @@ async def test_google_callback_empty_derived_username(
         "ai_trading_discipline_copilot.routers.auth.httpx.AsyncClient",
         return_value=mock_client,
     ):
+        client.cookies.set(
+            "oauth_state", state_token, domain="testserver.local", path="/auth"
+        )
         response = await client.get(
             "/auth/oauth2/google/callback",
             params={"code": "auth-code", "state": state_token},
@@ -546,3 +587,93 @@ async def test_google_callback_empty_derived_username(
         user = result.scalar_one_or_none()
         assert user is not None
         assert user.username == "google_user"
+
+
+@pytest.mark.anyio
+async def test_google_callback_client_binding_mismatch(client: AsyncClient) -> None:
+    """Test callback fails if state token does not match the client's cookie."""
+    state_payload = {
+        "timestamp": datetime.now(UTC).timestamp(),
+        "nonce": uuid.uuid4().hex,
+    }
+    state_token = jwt.encode(
+        state_payload,
+        settings.secret_key.get_secret_value(),
+        algorithm=settings.algorithm,
+    )
+
+    # State issued for client A is rejected by client B (different or no cookie)
+    client.cookies.set(
+        "oauth_state", "different-state-token", domain="testserver.local", path="/auth"
+    )
+    response = await client.get(
+        "/auth/oauth2/google/callback",
+        params={"code": "auth-code", "state": state_token},
+        follow_redirects=False,
+    )
+    assert response.status_code == 401
+    assert "mismatch or missing binding" in response.json()["detail"].lower()
+
+
+@pytest.mark.anyio
+async def test_google_callback_replay_prevention(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """Test that a successfully accepted OAuth state cannot be replayed."""
+    state_payload = {
+        "timestamp": datetime.now(UTC).timestamp(),
+        "nonce": uuid.uuid4().hex,
+    }
+    state_token = jwt.encode(
+        state_payload,
+        settings.secret_key.get_secret_value(),
+        algorithm=settings.algorithm,
+    )
+
+    mock_token_resp = MagicMock()
+    mock_token_resp.status_code = 200
+    mock_token_resp.json.return_value = {
+        "access_token": "google-access-token",
+        "id_token": "google-id-token",
+    }
+
+    mock_userinfo_resp = MagicMock()
+    mock_userinfo_resp.status_code = 200
+    mock_userinfo_resp.json.return_value = {
+        "sub": "google-id-replay",
+        "email": "replayuser@example.com",
+        "email_verified": True,
+        "name": "Replay User",
+    }
+
+    mock_client = AsyncMock()
+    mock_client.__aenter__.return_value = mock_client
+    mock_client.post.return_value = mock_token_resp
+    mock_client.get.return_value = mock_userinfo_resp
+
+    with patch(
+        "ai_trading_discipline_copilot.routers.auth.httpx.AsyncClient",
+        return_value=mock_client,
+    ):
+        # 1. First request - cookie is set and matches
+        client.cookies.set(
+            "oauth_state", state_token, domain="testserver.local", path="/auth"
+        )
+        response1 = await client.get(
+            "/auth/oauth2/google/callback",
+            params={"code": "auth-code", "state": state_token},
+            follow_redirects=False,
+        )
+        assert response1.status_code == 307
+
+        # Verify the oauth_state cookie was deleted (consumed)
+        assert "oauth_state" not in client.cookies
+
+        # 2. Second request (replay attempt) - cookie has been consumed/deleted
+        response2 = await client.get(
+            "/auth/oauth2/google/callback",
+            params={"code": "auth-code", "state": state_token},
+            follow_redirects=False,
+        )
+        assert response2.status_code == 401
+        assert "mismatch or missing binding" in response2.json()["detail"].lower()

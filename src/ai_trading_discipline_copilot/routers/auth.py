@@ -30,7 +30,10 @@ from ai_trading_discipline_copilot.core.exceptions import (
     UnauthorizedException,
 )
 from ai_trading_discipline_copilot.core.limiter import limiter
-from ai_trading_discipline_copilot.core.security import decode_refresh_token, hash_refresh_token
+from ai_trading_discipline_copilot.core.security import (
+    decode_refresh_token,
+    hash_refresh_token,
+)
 from ai_trading_discipline_copilot.models.user import User
 from ai_trading_discipline_copilot.schemas.email_verification import (
     ResendVerificationRequest,
@@ -622,7 +625,7 @@ async def verify_email(
         return VerifyEmailResponse(
             message="Email verified successfully.",
             access_token=access_token,
-            token_type="bearer",
+            token_type="bearer",  # noqa: S106
         )
     except Exception:
         logger.exception(
@@ -703,7 +706,16 @@ async def google_login(request: Request) -> RedirectResponse:
         "&scope=openid%20email%20profile"
         f"&state={state_token}"
     )
-    return RedirectResponse(url=google_auth_url)
+    redirect_response = RedirectResponse(url=google_auth_url)
+    redirect_response.set_cookie(
+        key="oauth_state",
+        value=state_token,
+        httponly=True,
+        max_age=600,
+        path="/auth",
+        samesite="lax",
+    )
+    return redirect_response
 
 
 @router.get("/oauth2/google/callback", name="google_callback")
@@ -724,7 +736,11 @@ async def google_callback(
             detail="Google OAuth2 credentials are not configured.",
         )
 
-    # 1. Verify state token signature and expiration
+    # 1. Verify state token signature, expiration, and client binding (nonce)
+    cookie_state = request.cookies.get("oauth_state")
+    if not cookie_state or cookie_state != state:
+        raise UnauthorizedException("OAuth state mismatch or missing binding")
+
     try:
         payload = jwt.decode(
             state,
@@ -805,4 +821,8 @@ async def google_callback(
     # hash immediately after reading the token (e.g. history.replaceState).
     token = local_tokens.access_token
     redirect_response.headers["Location"] = f"{redirect_url}#token={token}"
+    redirect_response.delete_cookie(
+        key="oauth_state",
+        path="/auth",
+    )
     return redirect_response

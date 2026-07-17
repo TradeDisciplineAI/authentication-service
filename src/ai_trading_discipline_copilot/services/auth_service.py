@@ -274,6 +274,15 @@ class AuthService:
             user = result.scalar_one_or_none()
 
             if user is not None:
+                # Validate is_active before linking
+                if not user.is_active:
+                    logger.warning(
+                        "Blocked Google login attempt for inactive user "
+                        "(before link): '%s'",
+                        user.username,
+                    )
+                    raise ForbiddenException("User account is disabled")
+
                 # Link Google account to existing user
                 user.google_id = google_id
                 # Google email is trusted and verified
