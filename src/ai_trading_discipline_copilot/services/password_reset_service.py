@@ -130,15 +130,11 @@ class PasswordResetService:
             raise UnauthorizedException("Invalid or expired password reset token")
 
         if db_token.used_at is not None:
-            logger.warning(
-                "Password reset token already used at %s.", db_token.used_at
-            )
+            logger.warning("Password reset token already used at %s.", db_token.used_at)
             raise UnauthorizedException("Invalid or expired password reset token")
 
         if db_token.expires_at <= datetime.now(UTC):
-            logger.warning(
-                "Password reset token expired at %s.", db_token.expires_at
-            )
+            logger.warning("Password reset token expired at %s.", db_token.expires_at)
             raise UnauthorizedException("Invalid or expired password reset token")
 
         return db_token

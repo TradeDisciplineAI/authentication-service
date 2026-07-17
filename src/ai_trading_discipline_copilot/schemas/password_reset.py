@@ -26,4 +26,3 @@ class ResetPasswordResponse(BaseModel):
     """Response to reset password execution."""
 
     message: str
-

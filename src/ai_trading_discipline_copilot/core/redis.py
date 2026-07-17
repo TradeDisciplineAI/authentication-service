@@ -25,7 +25,7 @@ def save_market_analysis(gainers, losers):
     redis_client.set(
         "market:analysis",
         json.dumps({
-            "gainers": gainers, 
+            "gainers": gainers,
             "losers": losers,
             "last_updated": datetime.utcnow().isoformat()
         })
@@ -36,15 +36,15 @@ def get_market_analysis():
     symbols = YFinanceService.WATCHLIST
     gainers = []
     losers = []
-    
+
     for symbol in symbols:
         data = get_market_data(symbol)
         if not data:
             continue
-            
+
         current_price = data.get("price")
         previous_close = data.get("previous_close")
-        
+
         if current_price and previous_close and previous_close > 0:
             percent_change = ((current_price - previous_close) / previous_close) * 100
             stock_data = {
@@ -57,10 +57,10 @@ def get_market_analysis():
                 gainers.append(stock_data)
             elif current_price < previous_close:
                 losers.append(stock_data)
-                
+
     gainers.sort(key=lambda x: x["percent_change"], reverse=True)
     losers.sort(key=lambda x: x["percent_change"])
-    
+
     last_updated = datetime.utcnow().isoformat()
     analysis_data = redis_client.get("market:analysis")
     if analysis_data:
@@ -68,7 +68,7 @@ def get_market_analysis():
             last_updated = json.loads(analysis_data).get("last_updated", last_updated)
         except Exception:
             pass
-            
+
     return {
         "gainers": gainers,
         "losers": losers,

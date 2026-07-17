@@ -10,12 +10,12 @@ async def test():
         await ws.send(json.dumps({"type": "subscribe", "symbol": "AAPL"}))
         await ws.send(json.dumps({"type": "subscribe", "symbol": "BINANCE:BTCUSDT"}))
         print("Subscribed. Listening...")
-        
+
         # Read for 5 seconds
         async def listen():
             async for msg in ws:
                 print("Received:", msg)
-                
+
         t = asyncio.create_task(listen())
         await asyncio.sleep(5)
         t.cancel()
