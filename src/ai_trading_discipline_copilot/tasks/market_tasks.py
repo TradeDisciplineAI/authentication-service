@@ -14,10 +14,10 @@ async def _fetch_all_quotes(symbols, yfinance_service):
     async def fetch(symbol):
         async with sem:
             return symbol, await yfinance_service.get_stock_quote(symbol)
-    
+
     tasks = [fetch(sym) for sym in symbols]
     results = await asyncio.gather(*tasks, return_exceptions=True)
-    
+
     valid_results = {}
     for res in results:
         if isinstance(res, tuple) and len(res) == 2:
@@ -31,20 +31,20 @@ async def _fetch_all_quotes(symbols, yfinance_service):
 def update_market_price():
     # Initialize Yahoo Finance Service
     yfinance_service = YFinanceService()
-    
+
     # Grab all the stocks from your YFinanceService WATCHLIST
     symbols = yfinance_service.WATCHLIST
-    
+
     gainers = []
     losers = []
-    
+
     # Fetch all quotes concurrently (much faster!)
     quotes_map = asyncio.run(_fetch_all_quotes(symbols, yfinance_service))
 
     for symbol in symbols:
         if symbol not in quotes_map:
             continue
-            
+
         # Get old price from Redis
         old_data = get_market_data(symbol)
         old_price = old_data.get("price") if old_data else None
@@ -53,7 +53,7 @@ def update_market_price():
         try:
             quote = quotes_map[symbol]
             new_price = quote.current_price
-            
+
             new_data = {
                 "symbol": symbol,
                 "price": new_price,
@@ -79,9 +79,9 @@ def update_market_price():
                     gainers.append(stock_data)
                 elif new_price < quote.previous_close:
                     losers.append(stock_data)
-                
+
             print(f"Updated REAL {symbol}: {new_data}")
-        
+
         except Exception as e:
             print(f"Error processing real data for {symbol}: {e}")
 
@@ -95,7 +95,7 @@ def update_market_price():
             print(f"  - {g['symbol']} (↑ ${g['price']} / +{g['percent_change']}%)")
     else:
         print("📈 GAINERS: None")
-        
+
     if losers:
         print("📉 LOSERS:")
         for l in losers:
@@ -104,5 +104,5 @@ def update_market_price():
         print("📉 LOSERS: None")
     print("=" * 30)
     save_market_analysis(gainers, losers)
-    
+
     return "Market Updated"

@@ -41,12 +41,27 @@ alembic/                ← Database migrations
 - PostgreSQL running locally (or via Docker)
 - [uv](https://docs.astral.sh/uv/) installed
 
-### 2. Clone & Install
+### 2. Setup Development Environment
+Clone the repository and run the setup script to automatically configure your environment:
+
+**Windows (PowerShell)**:
+```powershell
+git clone <repo-url>
+cd ai-trading-discipline-copilot
+.\scripts\setup.ps1
+```
+
+**Linux / macOS (Bash)**:
 ```bash
 git clone <repo-url>
 cd ai-trading-discipline-copilot
-uv sync --all-groups
+./scripts/setup.sh
 ```
+
+The setup script performs the following onboarding steps automatically:
+- Synchronizes project dependencies via `uv`.
+- Installs the Git pre-commit hooks (only if they are not already installed).
+- Validates the local development environment checks (linting, formatting, type checking).
 
 ### 3. Configure Environment
 ```bash
@@ -112,6 +127,19 @@ uv run ruff check src tests
 uv run mypy src
 ```
 
+### Pre-commit Hooks
+We use `pre-commit` to automate fast validation checks (formatting, linting, basic file checks, and type-checking) locally before every commit.
+
+To set up the pre-commit git hooks:
+```bash
+uv run pre-commit install
+```
+
+To manually trigger the pre-commit check on all files:
+```bash
+uv run pre-commit run --all-files
+```
+
 ## 🗄️ Creating a New Migration
 ```bash
 # After changing a model:
@@ -126,4 +154,4 @@ uv run alembic upgrade head
 MIT
 # ai-trading-discipline-copilot
 
-# Testing-integration 
+# Testing-integration

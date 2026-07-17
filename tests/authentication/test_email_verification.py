@@ -52,9 +52,7 @@ async def test_register_sends_verification_email(
         assert response.status_code == 201
 
         # Check user is created with is_verified=False
-        result = await db_session.execute(
-            select(User).where(User.username == "newreg")
-        )
+        result = await db_session.execute(select(User).where(User.username == "newreg"))
         user = result.scalar_one_or_none()
         assert user is not None
         assert user.is_verified is False
@@ -381,12 +379,15 @@ async def test_register_verification_email_failure_logged(
         "password": TEST_PASSWORD,
     }
 
-    with patch(
-        "ai_trading_discipline_copilot.services.email_service.EmailService.send_verification_email",
-        side_effect=Exception("SMTP or API connection timeout"),
-    ), patch(
-        "ai_trading_discipline_copilot.routers.auth.logger.exception"
-    ) as mock_log:
+    with (
+        patch(
+            "ai_trading_discipline_copilot.services.email_service.EmailService.send_verification_email",
+            side_effect=Exception("SMTP or API connection timeout"),
+        ),
+        patch(
+            "ai_trading_discipline_copilot.routers.auth.logger.exception"
+        ) as mock_log,
+    ):
         response = await client.post("/auth/register", json=payload)
 
         # Registration must still succeed immediately and return 201
@@ -415,6 +416,7 @@ async def test_email_verification_service_direct(
     Verify logic and hit coverage.
     """
     from ai_trading_discipline_copilot.core.security import hash_password
+
     user = User(
         username="directuser",
         email="direct@example.com",
@@ -425,10 +427,7 @@ async def test_email_verification_service_direct(
     await db_session.commit()
     await db_session.refresh(user)
 
-    plain = await EmailVerificationService.create_verification_token(
-        db_session, user
-    )
+    plain = await EmailVerificationService.create_verification_token(db_session, user)
     verified_user = await EmailVerificationService.verify_email(db_session, plain)
     assert verified_user.id == user.id
     assert verified_user.is_verified is True
-

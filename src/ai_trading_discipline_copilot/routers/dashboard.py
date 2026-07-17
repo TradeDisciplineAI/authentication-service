@@ -45,7 +45,7 @@ async def websocket_market_endpoint(websocket: WebSocket):
     try:
         # Instantly send the current state upon connection
         await websocket.send_json(get_market_analysis())
-        
+
         # Keep connection open infinitely
         while True:
             await websocket.receive_text()

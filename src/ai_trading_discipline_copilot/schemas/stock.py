@@ -11,4 +11,4 @@ class StockQuote(BaseModel):
     low: Optional[float] = None
     open_price: Optional[float] = None
     previous_close: Optional[float] = None
-    currency: Optional[str] = "USD"
+    currency: Optional[str] = "USD"
