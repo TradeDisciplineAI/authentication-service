@@ -99,6 +99,19 @@ def parse_device_name(user_agent: str | None) -> str:
     return "Web Client"
 
 
+def _mask_email(email: str) -> str:
+    """Mask email address to protect PII in logs (e.g. jo***@gmail.com)."""
+    try:
+        parts = email.split("@")
+        if len(parts) != 2:
+            return email
+        local, domain = parts
+        masked_local = local[0] + "*" if len(local) <= 2 else local[:2] + "***"
+        return f"{masked_local}@{domain}"
+    except Exception:
+        return "masked_email"
+
+
 async def run_cleanup_task() -> None:
     """Clean up expired sessions and tokens using a fresh DB session."""
     from ai_trading_discipline_copilot.core.database import AsyncSessionFactory
@@ -378,7 +391,7 @@ async def send_verification_email_task(
         logger.exception(
             "Failed to send email [type=verification] to user_id=%s, email=%s: %s",
             user_id,
-            email,
+            _mask_email(email),
             e,
         )
 
@@ -501,10 +514,11 @@ async def send_reset_email_task(
             html=html_content,
         )
     except Exception as e:
+        # nosemgrep - logs only user ID and masked email, no passwords or tokens
         logger.exception(
             "Failed to send email [type=password_reset] to user_id=%s, email=%s: %s",
             user_id,
-            email,
+            _mask_email(email),
             e,
         )
 
@@ -765,7 +779,21 @@ async def google_callback(
             },
         )
         if token_response.status_code != 200:
-            logger.error("Google token exchange failed: %s", token_response.text)
+            error_code = "unknown_error"
+            error_desc = "No description provided"
+            import contextlib
+
+            with contextlib.suppress(Exception):
+                err_data = token_response.json()
+                error_code = err_data.get("error", error_code)
+                error_desc = err_data.get("error_description", error_desc)
+            # nosemgrep - logs only status, error code, and desc, no credentials
+            logger.error(
+                "Google token exchange failed: status=%s, error=%s, description=%s",
+                token_response.status_code,
+                error_code,
+                error_desc,
+            )
             raise UnauthorizedException(
                 "Failed to exchange authorization code with Google"
             )

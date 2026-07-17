@@ -235,6 +235,7 @@ class AuthService:
         session = await RefreshTokenService.get_by_jti(db=db, jti=jti)
         if session:
             if session.revoked_at is not None:
+                # nosemgrep - logs only JTI (UUID), not the JWT
                 logger.warning(
                     "Logout attempted with already revoked token JTI: %s", jti
                 )

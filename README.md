@@ -128,7 +128,11 @@ uv run mypy src
 ```
 
 ### Pre-commit Hooks
-We use `pre-commit` to automate fast validation checks (formatting, linting, basic file checks, and type-checking) locally before every commit.
+We use `pre-commit` to automate fast validation checks locally before every commit:
+- Ruff Format
+- Ruff Check
+- MyPy
+- Semgrep
 
 To set up the pre-commit git hooks:
 ```bash
@@ -138,6 +142,11 @@ uv run pre-commit install
 To manually trigger the pre-commit check on all files:
 ```bash
 uv run pre-commit run --all-files
+```
+
+You can also run Semgrep manually at any time:
+```bash
+uv run semgrep --config=auto
 ```
 
 ## 🗄️ Creating a New Migration

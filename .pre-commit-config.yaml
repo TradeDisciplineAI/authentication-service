@@ -28,3 +28,11 @@ repos:
           - pyjwt[crypto]
           - bcrypt
           - fastapi
+
+  - repo: local
+    hooks:
+      - id: semgrep
+        name: semgrep
+        entry: uv run semgrep --config=auto
+        language: system
+        pass_filenames: false

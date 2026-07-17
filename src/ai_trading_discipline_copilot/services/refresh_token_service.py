@@ -205,6 +205,7 @@ class RefreshTokenService:
 
         # ── Refresh Token Reuse Detection ──────────────────────────────────
         if session.revoked_at is not None:
+            # nosemgrep - logs only user ID (UUID) and JTI (UUID), not the JWT
             logger.warning(
                 "Potential token reuse attack detected! Revoking all sessions for user %s. Token JTI: %s",  # noqa: E501
                 session.user_id,
@@ -261,6 +262,7 @@ class RefreshTokenService:
         await db.commit()
         await db.refresh(new_session)
 
+        # nosemgrep - logs only username and JTI (UUID) identifiers, not the JWT
         logger.info(
             "Rotated refresh token for user '%s'. Old JTI: %s, New JTI: %s",
             user.username,

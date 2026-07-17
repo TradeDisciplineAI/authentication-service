@@ -86,6 +86,7 @@ class EmailVerificationService:
         db.add(verification_token)
         await db.commit()
 
+        # nosemgrep - logs only user ID and timestamp, no token values
         logger.info(
             "Created email verification token for user ID: %s expiring at %s",
             user.id,
@@ -128,12 +129,14 @@ class EmailVerificationService:
             raise UnauthorizedException("Invalid or expired email verification token")
 
         if db_token.used_at is not None:
+            # nosemgrep - logs usage timestamp metadata only, no token values
             logger.warning(
                 "Email verification token already used at %s.", db_token.used_at
             )
             raise UnauthorizedException("Invalid or expired email verification token")
 
         if db_token.expires_at <= datetime.now(UTC):
+            # nosemgrep - logs expiration timestamp metadata only, no token values
             logger.warning(
                 "Email verification token expired at %s.", db_token.expires_at
             )
