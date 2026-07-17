@@ -167,7 +167,7 @@ async def test_login_cookie_attributes(
     assert "Path=/auth" in cookie
     if settings.cookie_secure:
         assert "Secure" in cookie
-        assert f"samesite={settings.cookie_samesite.lower()}" in cookie.lower()
+    assert f"samesite={settings.cookie_samesite.lower()}" in cookie.lower()
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -207,6 +207,7 @@ async def test_refresh_expired_token(
     response = await client.post("/auth/refresh")
 
     # Assert
+    assert response.status_code == 401
     assert "invalid" in response.json()["detail"].lower()
 
 
@@ -544,6 +545,17 @@ async def test_register_password_hashing(
     assert user.hashed_password is not None
     assert user.hashed_password != TEST_PASSWORD
     assert user.hashed_password.startswith("$2b$")
+
+    # Mark user as verified so they can log in
+    user.is_verified = True
+    await db_session.commit()
+
+    # Attempt login through production authentication flow to verify the password check works
+    login_res = await client.post(
+        "/auth/login",
+        data={"username": "hashcheck", "password": TEST_PASSWORD},
+    )
+    assert login_res.status_code == 200
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -996,24 +1008,22 @@ async def test_session_revoke_current(
     await db_session.commit()
 
     login_res = await client.post(
-        "/auth/login",
+        "https://testserver/auth/login",
         data={"username": "revokecurrent", "password": TEST_PASSWORD},
     )
     access_token = login_res.json()["access_token"]
-    refresh_token = login_res.cookies["refresh_token"]
 
     client.headers["Authorization"] = f"Bearer {access_token}"
-    client.cookies.set("refresh_token", refresh_token)
 
     # Get sessions
-    sess_res = await client.get("/auth/sessions")
+    sess_res = await client.get("https://testserver/auth/sessions")
     assert sess_res.status_code == 200
     sessions = sess_res.json()
     assert len(sessions) == 1
     session_id = sessions[0]["id"]
 
     # Revoke session
-    revoke_res = await client.delete(f"/auth/sessions/{session_id}")
+    revoke_res = await client.delete(f"https://testserver/auth/sessions/{session_id}")
     assert revoke_res.status_code == 204
 
     # Verify session is marked revoked
@@ -1024,11 +1034,11 @@ async def test_session_revoke_current(
     session_in_db = result.scalar_one()
     assert session_in_db.revoked_at is not None
 
-    # Verify cookie was cleared
-    assert (
-        "refresh_token" not in revoke_res.cookies
-        or revoke_res.cookies.get("refresh_token") == ""
-    )
+    # Verify cookie deletion header was sent in response
+    set_cookie = revoke_res.headers.get("set-cookie")
+    assert set_cookie is not None
+    assert "refresh_token" in set_cookie
+    assert "max-age=0" in set_cookie.lower() or "expires=" in set_cookie.lower()
 
 
 @pytest.mark.anyio
