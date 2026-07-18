@@ -28,6 +28,7 @@ repos:
           - pyjwt[crypto]
           - bcrypt
           - fastapi
+          - locust
 
   - repo: local
     hooks:

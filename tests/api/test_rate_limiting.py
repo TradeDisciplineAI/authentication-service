@@ -79,11 +79,12 @@ async def test_account_lockout_after_max_failed_logins(
 
 @pytest.mark.anyio
 async def test_rate_limiting_on_login(client: AsyncClient) -> None:
-    """Test that login requests are rate limited."""
+    """Test that login requests are rate limited when enable_login_rate_limiting is True."""
     from ai_trading_discipline_copilot.core.limiter import limiter
 
-    # Temporarily enable the limiter
+    # Temporarily enable the limiter and ensure login rate limiting is True
     limiter.enabled = True
+    get_settings().enable_login_rate_limiting = True
     try:
         # Send 11 login requests (limit is 10/minute)
         for idx in range(11):
@@ -100,3 +101,23 @@ async def test_rate_limiting_on_login(client: AsyncClient) -> None:
     finally:
         # Restore disabled limiter state
         limiter.enabled = False
+
+
+@pytest.mark.anyio
+async def test_configurable_login_rate_limiting_bypass(client: AsyncClient) -> None:
+    """Test that login rate limiting can be bypassed when enable_login_rate_limiting is False."""
+    from ai_trading_discipline_copilot.core.limiter import limiter
+
+    limiter.enabled = True
+    get_settings().enable_login_rate_limiting = False
+    try:
+        # Send 12 login requests; all 12 should bypass rate limiting (status 401, not 429)
+        for _ in range(12):
+            response = await client.post(
+                "/auth/login",
+                data={"username": "someuser", "password": TEST_PASSWORD},
+            )
+            assert response.status_code == 401
+    finally:
+        limiter.enabled = False
+        get_settings().enable_login_rate_limiting = True

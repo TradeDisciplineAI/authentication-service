@@ -39,6 +39,9 @@ class Settings(BaseSettings):
     max_login_attempts: int = 10
     lockout_duration_minutes: int = 15
 
+    # Rate Limiting Configuration
+    enable_login_rate_limiting: bool = True
+
     # Database
     database_url: SecretStr
     db_pool_size: int = 10
