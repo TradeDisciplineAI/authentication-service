@@ -39,6 +39,7 @@ def generate_native_reports(environment: Any) -> None:
     target_dir.mkdir(parents=True, exist_ok=True)
     base_filepath = str(target_dir / prefix)
 
+    csv_created = False
     # 1. Generate Native Locust CSV Reports (stats, failures, exceptions)
     try:
         csv_writer = StatsCSVFileWriter(
@@ -47,33 +48,47 @@ def generate_native_reports(environment: Any) -> None:
             base_filepath=base_filepath,
             full_history=False,
         )
+        # Explicitly write CSV headers & current stat rows for one-shot report generation
+        csv_writer.requests_csv_writer.writerow(csv_writer.requests_csv_columns)
+        csv_writer._requests_data_rows(csv_writer.requests_csv_writer)
+
+        csv_writer.failures_csv_writer.writerow(csv_writer.failures_columns)
+        csv_writer._failures_data_rows(csv_writer.failures_csv_writer)
+
+        csv_writer.exceptions_csv_writer.writerow(csv_writer.exceptions_columns)
+        csv_writer._exceptions_data_rows(csv_writer.exceptions_csv_writer)
+
         csv_writer.requests_flush()
         csv_writer.failures_flush()
         csv_writer.exceptions_flush()
         csv_writer.close_files()
+        csv_created = True
     except Exception as exc:
         logger.warning("Failed to write CSV performance reports: %s", exc)
 
     # 2. Generate Native Locust HTML Report
+    html_created = False
     html_filepath = target_dir / f"{prefix}.html"
     try:
         html_report_content: str = get_html_report(environment)  # type: ignore[no-untyped-call]
         with html_filepath.open("w", encoding="utf-8") as f:
             f.write(html_report_content)
+        html_created = True
     except Exception as exc:
         logger.warning("Failed to write HTML performance report: %s", exc)
 
-    # 3. Prominent Discoverability Summary Log
-    logger.info(
-        "\n"
-        "================================================================================\n"
-        "Performance test completed.\n"
-        "Reports generated in:\n"
-        "  %s\n"
-        "  ├── HTML: %s\n"
-        "  └── CSV:  %s_stats.csv\n"
+    # 3. Prominent Discoverability Summary Log (Only log files that were created)
+    summary_lines = [
         "================================================================================",
-        target_dir.resolve(),
-        html_filepath.name,
-        prefix,
+        "Performance test completed.",
+        f"Reports directory: {target_dir.resolve()}",
+    ]
+    if html_created and html_filepath.exists():
+        summary_lines.append(f"  ├── HTML: {html_filepath.name}")
+    csv_stats_file = target_dir / f"{prefix}_stats.csv"
+    if csv_created and csv_stats_file.exists():
+        summary_lines.append(f"  └── CSV:  {csv_stats_file.name}")
+    summary_lines.append(
+        "================================================================================"
     )
+    logger.info("\n" + "\n".join(summary_lines))

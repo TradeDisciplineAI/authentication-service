@@ -69,21 +69,54 @@ async def provision_db_accounts(
     Returns:
         List of all verified account dicts present in the database.
     """
+    # Guardrail: Prevent running load test provisioning against production
+    from ai_trading_discipline_copilot.core.config import get_settings
+
+    if get_settings().app_env.lower() == "production":
+        raise RuntimeError(
+            "Automatic test user provisioning is strictly forbidden in production environment (APP_ENV=production)!"
+        )
+
     try:
         async with AsyncSessionFactory() as db:
-            # Query existing loadtest emails in database
+            # Query existing loadtest users in database for reconciliation
             result = await db.execute(
-                select(User.email).where(User.email.like(f"{prefix}-%"))
+                select(User).where(User.email.like(f"{prefix}-%"))
             )
-            existing_emails = set(result.scalars().all())
+            existing_users = result.scalars().all()
+            existing_email_map = {user.email: user for user in existing_users}
+
+            # Reconcile existing accounts (ensure active, verified, unlocked state)
+            reconciled_count = 0
+            for user in existing_email_map.values():
+                needs_update = False
+                if not user.is_active:
+                    user.is_active = True
+                    needs_update = True
+                if not user.is_verified:
+                    user.is_verified = True
+                    needs_update = True
+                if user.failed_login_attempts != 0 or user.lockout_until is not None:
+                    user.failed_login_attempts = 0
+                    user.lockout_until = None
+                    needs_update = True
+                if needs_update:
+                    reconciled_count += 1
+
+            if reconciled_count > 0:
+                await db.commit()
+                logger.info(
+                    "Reconciled %d existing performance test accounts to active/verified state",
+                    reconciled_count,
+                )
 
             missing_accounts = [
-                acc for acc in target_accounts if acc["email"] not in existing_emails
+                acc for acc in target_accounts if acc["email"] not in existing_email_map
             ]
 
             if not missing_accounts:
                 logger.info(
-                    "All %d performance test accounts already exist in DB.",
+                    "All %d performance test accounts already exist and are active in DB.",
                     len(target_accounts),
                 )
                 return target_accounts
@@ -134,6 +167,9 @@ def save_user_pool_file(accounts: list[dict[str, str]], file_path: str) -> None:
     Args:
         accounts: List of account dicts.
         file_path: Target JSON file path.
+
+    Raises:
+        IOError: If writing to the user pool file fails.
     """
     try:
         pool_data = [
@@ -152,7 +188,8 @@ def save_user_pool_file(accounts: list[dict[str, str]], file_path: str) -> None:
             "Saved %d test accounts to user pool file: %s", len(accounts), file_path
         )
     except Exception as exc:
-        logger.warning("Failed to save user pool file %s: %s", file_path, exc)
+        logger.error("Failed to save user pool file %s: %s", file_path, exc)
+        raise exc
 
 
 def _run_standalone_provisioner() -> list[dict[str, str]]:

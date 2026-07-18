@@ -84,6 +84,51 @@ class PerformanceConfig:
         self._account_index: int = 0
         self._lock = threading.Lock()
 
+        # Log security warning if default load test password is used
+        if not os.getenv("LOAD_TEST_PASSWORD") and not os.getenv("TEST_PASSWORD"):
+            logger.warning(
+                "LOAD_TEST_PASSWORD environment variable is not explicitly set. "
+                "Using default test password for local load testing."
+            )
+
+    def _validate_pool_entries(
+        self, entries: list[dict[str, str]]
+    ) -> list[dict[str, str]]:
+        """Validate JSON structure, required fields, and deduplicate accounts by username."""
+        valid_pool: list[dict[str, str]] = []
+        seen_usernames: set[str] = set()
+
+        for idx, entry in enumerate(entries):
+            if not isinstance(entry, dict):
+                logger.warning(
+                    "Ignoring invalid non-dict entry at index %d in user pool", idx
+                )
+                continue
+            username = entry.get("username")
+            password = entry.get("password")
+            if (
+                not username
+                or not password
+                or not isinstance(username, str)
+                or not isinstance(password, str)
+            ):
+                logger.warning(
+                    "Ignoring user pool entry at index %d missing username or password",
+                    idx,
+                )
+                continue
+            if username in seen_usernames:
+                logger.warning(
+                    "Ignoring duplicate username '%s' in user pool at index %d",
+                    username,
+                    idx,
+                )
+                continue
+            seen_usernames.add(username)
+            valid_pool.append(entry)
+
+        return valid_pool
+
     def load_user_pool(self) -> list[dict[str, str]]:
         """Load pool of test accounts from JSON file, environment, or provisioner.
 
@@ -98,10 +143,15 @@ class PerformanceConfig:
         if pool_json_env:
             try:
                 data = json.loads(pool_json_env)
-                if isinstance(data, list) and data:
-                    self._user_pool = data
-                    logger.info("Loaded %d users from LOCUST_USER_POOL_JSON", len(data))
-                    return self._user_pool
+                if isinstance(data, list):
+                    valid = self._validate_pool_entries(data)
+                    if valid:
+                        self._user_pool = valid
+                        logger.info(
+                            "Loaded %d valid users from LOCUST_USER_POOL_JSON",
+                            len(valid),
+                        )
+                        return self._user_pool
             except Exception as exc:
                 logger.warning("Failed to parse LOCUST_USER_POOL_JSON: %s", exc)
 
@@ -111,18 +161,35 @@ class PerformanceConfig:
             try:
                 with pool_file.open("r", encoding="utf-8") as f:
                     data = json.load(f)
-                if isinstance(data, list) and len(data) >= self.NUM_USERS:
-                    self._user_pool = data
-                    logger.info(
-                        "Loaded %d users from pool file: %s",
-                        len(data),
-                        self.USER_POOL_FILE,
-                    )
-                    return self._user_pool
+                if isinstance(data, list):
+                    valid = self._validate_pool_entries(data)
+                    if len(valid) >= self.NUM_USERS:
+                        self._user_pool = valid
+                        logger.info(
+                            "Loaded %d valid users from pool file: %s",
+                            len(valid),
+                            self.USER_POOL_FILE,
+                        )
+                        return self._user_pool
+                    elif not self.AUTO_PROVISION:
+                        raise ValueError(
+                            f"Configured benchmark requires {self.NUM_USERS} virtual users, "
+                            f"but user pool file contains only {len(valid)} valid account(s). "
+                            "Auto-provisioning is disabled (LOCUST_AUTO_PROVISION=false)."
+                        )
+            except ValueError:
+                raise
             except Exception as exc:
                 logger.warning(
                     "Failed to read user pool file %s: %s", self.USER_POOL_FILE, exc
                 )
+
+        if not self.AUTO_PROVISION:
+            raise ValueError(
+                f"Configured benchmark requires {self.NUM_USERS} virtual users, "
+                f"but no valid user pool file was found at '{self.USER_POOL_FILE}' "
+                "and auto-provisioning is disabled (LOCUST_AUTO_PROVISION=false)."
+            )
 
         # 3. Fallback to single test user credentials
         logger.info(
@@ -138,8 +205,11 @@ class PerformanceConfig:
         return self._user_pool
 
     def set_user_pool(self, pool: list[dict[str, str]]) -> None:
-        """Explicitly set the user pool in memory."""
-        self._user_pool = pool
+        """Explicitly set the user pool in memory after validation."""
+        valid = self._validate_pool_entries(pool)
+        if not valid:
+            raise ValueError("Cannot set empty or invalid user pool.")
+        self._user_pool = valid
         self._account_index = 0
 
     def get_next_account(self) -> dict[str, str]:
