@@ -35,6 +35,22 @@ async def create_test_db() -> None:
     await engine.dispose()
 
 
+# Enterprise PostgreSQL schemas used by the application.
+SCHEMAS = (
+    "auth",
+    "market",
+    "sentiment",
+    "strategy",
+    "risk",
+    "execution",
+    "learning",
+    "discipline",
+    "analytics",
+    "audit",
+    "system",
+)
+
+
 @pytest.fixture
 async def db_engine() -> AsyncGenerator[AsyncEngine]:
     """Create a database engine scoped to the test's event loop."""
@@ -44,10 +60,14 @@ async def db_engine() -> AsyncGenerator[AsyncEngine]:
 
     # Recreate tables for every test to ensure a clean state and avoid loop mismatch
     async with engine.begin() as conn:
-        await conn.execute(text("DROP SCHEMA IF EXISTS auth CASCADE"))
-        await conn.execute(text("CREATE SCHEMA auth"))
+        for schema in SCHEMAS:
+            await conn.execute(text(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE'))
+
+        for schema in SCHEMAS:
+            await conn.execute(text(f'CREATE SCHEMA "{schema}"'))
 
         await conn.run_sync(Base.metadata.create_all)
+
     yield engine
     await engine.dispose()
 
