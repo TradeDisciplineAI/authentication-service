@@ -27,6 +27,7 @@ class UserRole(enum.StrEnum):
 
 class User(Base):
     __tablename__ = "users"
+    __table_args__ = {"schema": "auth"}
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -63,7 +64,11 @@ class User(Base):
         cascade="all, delete-orphan",
     )
     role: Mapped[UserRole] = mapped_column(
-        Enum(UserRole, name="user_role"),
+        Enum(
+            UserRole,
+            name="user_role",
+            schema="auth",
+        ),
         default=UserRole.USER,
         nullable=False,
     )

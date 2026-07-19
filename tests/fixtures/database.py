@@ -44,9 +44,10 @@ async def db_engine() -> AsyncGenerator[AsyncEngine]:
 
     # Recreate tables for every test to ensure a clean state and avoid loop mismatch
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-        await conn.run_sync(Base.metadata.create_all)
+        await conn.execute(text("DROP SCHEMA IF EXISTS auth CASCADE"))
+        await conn.execute(text("CREATE SCHEMA auth"))
 
+        await conn.run_sync(Base.metadata.create_all)
     yield engine
     await engine.dispose()
 

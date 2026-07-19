@@ -20,7 +20,7 @@ class PasswordResetToken(Base):
     """Stores one-time password reset tokens."""
 
     __tablename__ = "password_reset_tokens"
-
+    __table_args__ = {"schema": "auth"}
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
@@ -29,7 +29,7 @@ class PasswordResetToken(Base):
 
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("users.id", ondelete="CASCADE"),
+        ForeignKey("auth.users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
