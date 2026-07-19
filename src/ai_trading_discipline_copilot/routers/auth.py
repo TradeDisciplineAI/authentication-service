@@ -162,11 +162,16 @@ async def register(
     return UserResponse.model_validate(user)
 
 
+def _is_login_rate_limiting_exempt(request: Request) -> bool:
+    """Check if rate limiting for the login endpoint is exempted."""
+    return not get_settings().enable_login_rate_limiting
+
+
 @router.post(
     "/login",
     response_model=Token,
 )
-@limiter.limit("10/minute")
+@limiter.limit("10/minute", exempt_when=_is_login_rate_limiting_exempt)
 async def login(
     response: Response,
     request: Request,
