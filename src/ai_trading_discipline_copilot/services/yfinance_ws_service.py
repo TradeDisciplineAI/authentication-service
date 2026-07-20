@@ -3,7 +3,6 @@ import logging
 from datetime import UTC, datetime
 
 from ai_trading_discipline_copilot.core.redis import get_market_data, save_market_data
-from ai_trading_discipline_copilot.core.websocket_manager import manager
 from ai_trading_discipline_copilot.services.yfinance_service import YFinanceService
 
 logger = logging.getLogger(__name__)
@@ -30,13 +29,13 @@ class YFinanceWebSocketService:
                     new_price = quote.current_price
                     timestamp = datetime.now(UTC).isoformat()
 
-                    existing_data = get_market_data(symbol) or {}
+                    existing_data = (await get_market_data(symbol)) or {}
                     existing_data["symbol"] = symbol
                     existing_data["price"] = new_price
                     existing_data["timestamp"] = timestamp
                     existing_data["currency"] = quote.currency
 
-                    save_market_data(symbol, existing_data)
+                    await save_market_data(symbol, existing_data)
 
                 # Poll every 10 seconds to avoid Yahoo Finance rate limits
                 await asyncio.sleep(10)

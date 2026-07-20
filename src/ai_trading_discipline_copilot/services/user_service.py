@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 from sqlalchemy import or_, select
@@ -45,10 +46,12 @@ class UserService:
             )
             raise ConflictException("Email already exists")
 
+        hashed_pw = await asyncio.to_thread(hash_password, user_data.password)
+
         user = User(
             username=user_data.username,
             email=user_data.email,
-            hashed_password=hash_password(user_data.password),
+            hashed_password=hashed_pw,
             is_verified=False,
         )
 

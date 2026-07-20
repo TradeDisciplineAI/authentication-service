@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import logging
 import secrets
@@ -166,7 +167,7 @@ class PasswordResetService:
         user = db_token.user
 
         # Hash new password
-        hashed = hash_password(new_password)
+        hashed = await asyncio.to_thread(hash_password, new_password)
         user.hashed_password = hashed
 
         # Mark token as used

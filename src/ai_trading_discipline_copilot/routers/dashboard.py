@@ -35,7 +35,7 @@ async def get_market_analysis_endpoint():
     """
     Returns the latest Gainers and Losers calculated by the Celery background worker.
     """
-    return get_market_analysis()
+    return await get_market_analysis()
 
 @router.websocket("/ws/market")
 async def websocket_market_endpoint(websocket: WebSocket):
@@ -45,7 +45,7 @@ async def websocket_market_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
     try:
         # Instantly send the current state upon connection
-        await websocket.send_json(get_market_analysis())
+        await websocket.send_json(await get_market_analysis())
 
         # Keep connection open infinitely
         while True:

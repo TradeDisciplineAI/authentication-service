@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from datetime import UTC, datetime, timedelta
 
@@ -69,26 +70,28 @@ class AuthService:
                 user.lockout_until = None
                 await db.commit()
 
-        if (
-            user is None
-            or user.hashed_password is None
-            or not verify_password(
-                password,
-                user.hashed_password,
-            )
-        ):
-            if user is not None:
-                user.failed_login_attempts += 1
-                if user.failed_login_attempts >= settings.max_login_attempts:
-                    user.lockout_until = datetime.now(UTC) + timedelta(
-                        minutes=settings.lockout_duration_minutes
-                    )
-                    logger.warning(
-                        "Account locked for user: '%s' after %d failed attempts",
-                        user.username,
-                        user.failed_login_attempts,
-                    )
-                await db.commit()
+        if user is None or user.hashed_password is None:
+            logger.warning("Failed login attempt for username/email: '%s'", username)
+            raise UnauthorizedException("Invalid username or password")
+
+        password_valid = await asyncio.to_thread(
+            verify_password,
+            password,
+            user.hashed_password,
+        )
+
+        if not password_valid:
+            user.failed_login_attempts += 1
+            if user.failed_login_attempts >= settings.max_login_attempts:
+                user.lockout_until = datetime.now(UTC) + timedelta(
+                    minutes=settings.lockout_duration_minutes
+                )
+                logger.warning(
+                    "Account locked for user: '%s' after %d failed attempts",
+                    user.username,
+                    user.failed_login_attempts,
+                )
+            await db.commit()
             logger.warning("Failed login attempt for username/email: '%s'", username)
             raise UnauthorizedException("Invalid username or password")
 

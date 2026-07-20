@@ -31,29 +31,20 @@ async def _fetch_all_quotes(symbols, yfinance_service):
                 valid_results[res[0]] = res[1]
     return valid_results
 
-@celery_app.task
-def update_market_price():
-    # Initialize Yahoo Finance Service
-    yfinance_service = YFinanceService()
 
-    # Grab all the stocks from your YFinanceService WATCHLIST
+async def _update_market_price_async():
+    yfinance_service = YFinanceService()
     symbols = yfinance_service.WATCHLIST
 
     gainers = []
     losers = []
 
-    # Fetch all quotes concurrently (much faster!)
-    quotes_map = asyncio.run(_fetch_all_quotes(symbols, yfinance_service))
+    quotes_map = await _fetch_all_quotes(symbols, yfinance_service)
 
     for symbol in symbols:
         if symbol not in quotes_map:
             continue
 
-        # Get old price from Redis
-        old_data = get_market_data(symbol)
-        old_price = old_data.get("price") if old_data else None
-
-        # Process the newly fetched price
         try:
             quote = quotes_map[symbol]
             new_price = quote.current_price
@@ -66,10 +57,8 @@ def update_market_price():
                 "currency": quote.currency
             }
 
-            # Save new price to Redis
-            save_market_data(symbol, new_data)
+            await save_market_data(symbol, new_data)
 
-            # Compare and categorize based on daily previous close
             if quote.previous_close is not None and quote.previous_close > 0:
                 percent_change = ((new_price - quote.previous_close) / quote.previous_close) * 100
                 stock_data = {
@@ -89,7 +78,6 @@ def update_market_price():
         except Exception:
             logger.exception("Error processing real data for %s", symbol)
 
-    # Log Gainers and Losers Analysis
     logger.info("=" * 30)
     logger.info("MARKET ANALYSIS (GAINERS & LOSERS)")
     logger.info("=" * 30)
@@ -107,6 +95,11 @@ def update_market_price():
     else:
         logger.info("📉 LOSERS: None")
     logger.info("=" * 30)
-    save_market_analysis(gainers, losers)
 
+    await save_market_analysis(gainers, losers)
     return "Market Updated"
+
+
+@celery_app.task
+def update_market_price():
+    return asyncio.run(_update_market_price_async())
