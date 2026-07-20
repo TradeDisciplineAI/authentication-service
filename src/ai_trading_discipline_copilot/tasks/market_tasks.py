@@ -1,13 +1,17 @@
 import asyncio
-from datetime import datetime
+import logging
+from datetime import UTC, datetime
+
 from ai_trading_discipline_copilot.core.celery import celery_app
+from ai_trading_discipline_copilot.core.redis import (
+    get_market_data,
+    save_market_analysis,
+    save_market_data,
+)
 from ai_trading_discipline_copilot.services.yfinance_service import YFinanceService
 
-from ai_trading_discipline_copilot.core.redis import (
-    save_market_data,
-    get_market_data,
-    save_market_analysis
-)
+logger = logging.getLogger(__name__)
+
 
 async def _fetch_all_quotes(symbols, yfinance_service):
     sem = asyncio.Semaphore(15)
@@ -22,7 +26,7 @@ async def _fetch_all_quotes(symbols, yfinance_service):
     for res in results:
         if isinstance(res, tuple) and len(res) == 2:
             if isinstance(res[1], Exception):
-                print(f"Error fetching real data for {res[0]}: {res[1]}")
+                logger.error("Error fetching real data for %s: %s", res[0], res[1])
             else:
                 valid_results[res[0]] = res[1]
     return valid_results
@@ -57,7 +61,7 @@ def update_market_price():
             new_data = {
                 "symbol": symbol,
                 "price": new_price,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "previous_close": quote.previous_close,
                 "currency": quote.currency
             }
@@ -80,29 +84,29 @@ def update_market_price():
                 elif new_price < quote.previous_close:
                     losers.append(stock_data)
 
-            print(f"Updated REAL {symbol}: {new_data}")
+            logger.info("Updated REAL %s: %s", symbol, new_data)
 
-        except Exception as e:
-            print(f"Error processing real data for {symbol}: {e}")
+        except Exception:
+            logger.exception("Error processing real data for %s", symbol)
 
-    # Print Gainers and Losers Analysis
-    print("=" * 30)
-    print("MARKET ANALYSIS (GAINERS & LOSERS)")
-    print("=" * 30)
+    # Log Gainers and Losers Analysis
+    logger.info("=" * 30)
+    logger.info("MARKET ANALYSIS (GAINERS & LOSERS)")
+    logger.info("=" * 30)
     if gainers:
-        print("📈 GAINERS:")
+        logger.info("📈 GAINERS:")
         for g in gainers:
-            print(f"  - {g['symbol']} (↑ ${g['price']} / +{g['percent_change']}%)")
+            logger.info("  - %s (↑ $%s / +%s%%)", g["symbol"], g["price"], g["percent_change"])
     else:
-        print("📈 GAINERS: None")
+        logger.info("📈 GAINERS: None")
 
     if losers:
-        print("📉 LOSERS:")
-        for l in losers:
-            print(f"  - {l['symbol']} (↓ ${l['price']} / {l['percent_change']}%)")
+        logger.info("📉 LOSERS:")
+        for item in losers:
+            logger.info("  - %s (↓ $%s / %s%%)", item["symbol"], item["price"], item["percent_change"])
     else:
-        print("📉 LOSERS: None")
-    print("=" * 30)
+        logger.info("📉 LOSERS: None")
+    logger.info("=" * 30)
     save_market_analysis(gainers, losers)
 
     return "Market Updated"

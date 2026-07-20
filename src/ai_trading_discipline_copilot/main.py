@@ -14,27 +14,7 @@ from .core.exceptions import AppException
 from .core.limiter import limiter
 from .routers.auth import router as auth_router
 from .routers.dashboard import router as dashboard_router
-from contextlib import asynccontextmanager
-import asyncio
-from ai_trading_discipline_copilot.services.yfinance_ws_service import YFinanceWebSocketService
 
-settings = get_settings()
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Startup: Create the background task to listen to the simulated WebSocket
-    ws_service = YFinanceWebSocketService()
-    # Start the websocket listener in the background
-    task = asyncio.create_task(ws_service.connect_and_listen())
-    try:
-        yield
-    finally:
-        # Cancel the task on shutdown
-        task.cancel()
-        try:
-            await task
-        except asyncio.CancelledError:
-            pass
 settings = get_settings()
 
 
@@ -52,7 +32,6 @@ app = FastAPI(
     # the full API schema to unauthenticated users in staging/production.
     docs_url="/docs" if settings.app_env == "development" else None,
     redoc_url="/redoc" if settings.app_env == "development" else None,
-    lifespan=lifespan,
 )
 
 # Attach limiter state and exception handler

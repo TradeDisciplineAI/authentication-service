@@ -1,8 +1,12 @@
 import asyncio
+import logging
+
 import yfinance as yf
 
 from ai_trading_discipline_copilot.schemas.gainers import GainerStock
 from ai_trading_discipline_copilot.schemas.stock import StockQuote
+
+logger = logging.getLogger(__name__)
 
 
 class YFinanceService:
@@ -46,8 +50,8 @@ class YFinanceService:
     async def get_stock_quote(self, symbol: str) -> StockQuote | None:
         try:
             return await asyncio.to_thread(self._fetch_quote_sync, symbol)
-        except Exception as e:
-            print(f"Failed to fetch quote data for {symbol}: {e}")
+        except Exception:
+            logger.exception("Failed to fetch quote data for %s", symbol)
             return None
 
     def _fetch_gainers_sync(self) -> list[GainerStock]:
@@ -69,8 +73,8 @@ class YFinanceService:
                         percent_change=percent_change,
                     )
                 )
-            except Exception as e:
-                print(f"Failed to fetch gainer data for {symbol}: {e}")
+            except Exception:
+                logger.exception("Failed to fetch gainer data for %s", symbol)
 
         gainers.sort(key=lambda stock: stock.percent_change, reverse=True)
         return gainers[:15]

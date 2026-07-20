@@ -1,11 +1,14 @@
-from fastapi import APIRouter
+import logging
 
-from ai_trading_discipline_copilot.schemas.stock import StockQuote
-from ai_trading_discipline_copilot.services.yfinance_service import YFinanceService
-from ai_trading_discipline_copilot.schemas.gainers import GainerStock
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+
 from ai_trading_discipline_copilot.core.redis import get_market_analysis
 from ai_trading_discipline_copilot.core.websocket_manager import manager
-from fastapi import WebSocket, WebSocketDisconnect
+from ai_trading_discipline_copilot.schemas.gainers import GainerStock
+from ai_trading_discipline_copilot.schemas.stock import StockQuote
+from ai_trading_discipline_copilot.services.yfinance_service import YFinanceService
+
+logger = logging.getLogger(__name__)
 
 service = YFinanceService()
 router = APIRouter(
@@ -13,12 +16,10 @@ router = APIRouter(
     tags=["Dashboard"],
 )
 
-yfinance_service = YFinanceService()
-
 
 @router.get("/quote/{symbol}", response_model=StockQuote)
 async def get_stock_quote(symbol: str):
-    return await yfinance_service.get_stock_quote(symbol)
+    return await service.get_stock_quote(symbol)
 
 
 @router.get(
