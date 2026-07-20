@@ -31,8 +31,6 @@ docker-compose.yml
 .vscode/
 .idea/
 
-# Local database / Alembic auto-gen artifacts
+# Local database
 *.db
 *.sqlite
-alembic/versions/*
-!alembic/versions/.gitkeep
