@@ -1,9 +1,13 @@
-import redis
 import json
-from datetime import datetime
+import logging
+from datetime import UTC, datetime
+
+import redis
+
 from ai_trading_discipline_copilot.core.config import get_settings
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 redis_client = redis.Redis.from_url(
     settings.redis_url,
@@ -21,56 +25,22 @@ def get_market_data(symbol):
     if data:
         return json.loads(data)
     return None
+
 def save_market_analysis(gainers, losers):
     redis_client.set(
         "market:analysis",
         json.dumps({
             "gainers": gainers,
             "losers": losers,
-            "last_updated": datetime.utcnow().isoformat()
+            "last_updated": datetime.now(UTC).isoformat()
         })
     )
 
 def get_market_analysis():
-    from ai_trading_discipline_copilot.services.yfinance_service import YFinanceService
-    symbols = YFinanceService.WATCHLIST
-    gainers = []
-    losers = []
-
-    for symbol in symbols:
-        data = get_market_data(symbol)
-        if not data:
-            continue
-
-        current_price = data.get("price")
-        previous_close = data.get("previous_close")
-
-        if current_price and previous_close and previous_close > 0:
-            percent_change = ((current_price - previous_close) / previous_close) * 100
-            stock_data = {
-                "symbol": symbol,
-                "price": round(current_price, 5),
-                "percent_change": round(percent_change, 2),
-                "currency": data.get("currency", "USD")
-            }
-            if current_price > previous_close:
-                gainers.append(stock_data)
-            elif current_price < previous_close:
-                losers.append(stock_data)
-
-    gainers.sort(key=lambda x: x["percent_change"], reverse=True)
-    losers.sort(key=lambda x: x["percent_change"])
-
-    last_updated = datetime.utcnow().isoformat()
-    analysis_data = redis_client.get("market:analysis")
-    if analysis_data:
+    data = redis_client.get("market:analysis")
+    if data:
         try:
-            last_updated = json.loads(analysis_data).get("last_updated", last_updated)
+            return json.loads(data)
         except Exception:
-            pass
-
-    return {
-        "gainers": gainers,
-        "losers": losers,
-        "last_updated": last_updated
-    }
+            logger.exception("Failed to parse market analysis from Redis")
+    return {"gainers": [], "losers": [], "last_updated": None}
