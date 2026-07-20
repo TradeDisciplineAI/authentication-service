@@ -163,11 +163,12 @@ class PasswordResetService:
         Raises:
             UnauthorizedException: If the token is invalid or expired.
         """
+        # Compute hash before DB operations to avoid holding connections
+        hashed = await asyncio.to_thread(hash_password, new_password)
+
         db_token = await PasswordResetService.validate_token(db, token)
         user = db_token.user
 
-        # Hash new password
-        hashed = await asyncio.to_thread(hash_password, new_password)
         user.hashed_password = hashed
 
         # Mark token as used

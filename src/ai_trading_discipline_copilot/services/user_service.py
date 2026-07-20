@@ -22,6 +22,9 @@ class UserService:
     ) -> User:
         """Register a new user."""
 
+        # Compute hash before DB query to avoid holding connections
+        hashed_pw = await asyncio.to_thread(hash_password, user_data.password)
+
         # Check whether the username or email already exists.
         result = await db.execute(
             select(User).where(
@@ -45,8 +48,6 @@ class UserService:
                 "Registration failed: Email '%s' already exists", user_data.email
             )
             raise ConflictException("Email already exists")
-
-        hashed_pw = await asyncio.to_thread(hash_password, user_data.password)
 
         user = User(
             username=user_data.username,

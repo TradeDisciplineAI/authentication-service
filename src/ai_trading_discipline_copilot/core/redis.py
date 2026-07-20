@@ -15,22 +15,30 @@ redis_client = redis.from_url(
 )
 
 
-async def save_market_data(symbol, data):
-    await redis_client.set(
+def get_redis_client() -> redis.Redis:
+    """Return a fresh async Redis client for explicit lifecycle management (e.g. in Celery tasks)."""
+    return redis.from_url(settings.redis_url, decode_responses=True)
+
+
+async def save_market_data(symbol: str, data: dict, client: redis.Redis | None = None) -> None:
+    r = client or redis_client
+    await r.set(
         f"market:{symbol}",
         json.dumps(data)
     )
 
 
-async def get_market_data(symbol):
-    data = await redis_client.get(f"market:{symbol}")
+async def get_market_data(symbol: str, client: redis.Redis | None = None) -> dict | None:
+    r = client or redis_client
+    data = await r.get(f"market:{symbol}")
     if data:
         return json.loads(data)
     return None
 
 
-async def save_market_analysis(gainers, losers):
-    await redis_client.set(
+async def save_market_analysis(gainers: list, losers: list, client: redis.Redis | None = None) -> None:
+    r = client or redis_client
+    await r.set(
         "market:analysis",
         json.dumps({
             "gainers": gainers,
@@ -40,8 +48,9 @@ async def save_market_analysis(gainers, losers):
     )
 
 
-async def get_market_analysis():
-    data = await redis_client.get("market:analysis")
+async def get_market_analysis(client: redis.Redis | None = None) -> dict:
+    r = client or redis_client
+    data = await r.get("market:analysis")
     if data:
         try:
             return json.loads(data)

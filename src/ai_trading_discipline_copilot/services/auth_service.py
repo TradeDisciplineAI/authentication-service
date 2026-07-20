@@ -28,6 +28,7 @@ settings = get_settings()
 logger = logging.getLogger(__name__)
 
 _REFRESH_COOKIE_NAME = settings.cookie_name
+_DUMMY_HASH = "$2b$12$eImiTXuWVxfMjpqq8q2f.e8b81G0Yg8MhNnd9pLNmP8Q7dI0s4."
 
 
 class AuthService:
@@ -41,15 +42,14 @@ class AuthService:
     ) -> User:
         """Authenticate a user using a username or email and password."""
 
+        # Fetch user without lock to avoid holding DB connections
         result = await db.execute(
-            select(User)
-            .where(
+            select(User).where(
                 or_(
                     User.username == username,
                     User.email == username,
                 )
             )
-            .with_for_update()
         )
 
         user = result.scalar_one_or_none()
@@ -70,28 +70,38 @@ class AuthService:
                 user.lockout_until = None
                 await db.commit()
 
-        if user is None or user.hashed_password is None:
-            logger.warning("Failed login attempt for username/email: '%s'", username)
-            raise UnauthorizedException("Invalid username or password")
+        # Use dummy hash if user/hash missing to prevent timing attacks
+        target_hash = (
+            user.hashed_password
+            if (user is not None and user.hashed_password is not None)
+            else _DUMMY_HASH
+        )
 
+        # Offload bcrypt verification to background thread WITHOUT DB locks
         password_valid = await asyncio.to_thread(
             verify_password,
             password,
-            user.hashed_password,
+            target_hash,
         )
 
-        if not password_valid:
-            user.failed_login_attempts += 1
-            if user.failed_login_attempts >= settings.max_login_attempts:
-                user.lockout_until = datetime.now(UTC) + timedelta(
-                    minutes=settings.lockout_duration_minutes
+        if user is None or user.hashed_password is None or not password_valid:
+            if user is not None:
+                lock_result = await db.execute(
+                    select(User).where(User.id == user.id).with_for_update()
                 )
-                logger.warning(
-                    "Account locked for user: '%s' after %d failed attempts",
-                    user.username,
-                    user.failed_login_attempts,
-                )
-            await db.commit()
+                locked_user = lock_result.scalar_one_or_none()
+                if locked_user is not None:
+                    locked_user.failed_login_attempts += 1
+                    if locked_user.failed_login_attempts >= settings.max_login_attempts:
+                        locked_user.lockout_until = datetime.now(UTC) + timedelta(
+                            minutes=settings.lockout_duration_minutes
+                        )
+                        logger.warning(
+                            "Account locked for user: '%s' after %d failed attempts",
+                            locked_user.username,
+                            locked_user.failed_login_attempts,
+                        )
+                    await db.commit()
             logger.warning("Failed login attempt for username/email: '%s'", username)
             raise UnauthorizedException("Invalid username or password")
 
@@ -101,11 +111,16 @@ class AuthService:
             )
             raise UnauthorizedException("User account is disabled")
 
-        # Successful login — reset failure counters
-        if user.failed_login_attempts > 0:
-            user.failed_login_attempts = 0
-            user.lockout_until = None
-            await db.commit()
+        # Successful login — reset failure counters if necessary
+        if user.failed_login_attempts > 0 or user.lockout_until is not None:
+            lock_result = await db.execute(
+                select(User).where(User.id == user.id).with_for_update()
+            )
+            locked_user = lock_result.scalar_one_or_none()
+            if locked_user is not None:
+                locked_user.failed_login_attempts = 0
+                locked_user.lockout_until = None
+                await db.commit()
 
         return user
 
