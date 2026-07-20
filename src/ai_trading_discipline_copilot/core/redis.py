@@ -2,32 +2,43 @@ import json
 import logging
 from datetime import UTC, datetime
 
-import redis
+import redis.asyncio as redis
 
 from ai_trading_discipline_copilot.core.config import get_settings
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
 
-redis_client = redis.Redis.from_url(
+redis_client = redis.from_url(
     settings.redis_url,
     decode_responses=True
 )
 
-def save_market_data(symbol, data):
-    redis_client.set(
+
+def get_redis_client() -> redis.Redis:
+    """Return a fresh async Redis client for explicit lifecycle management (e.g. in Celery tasks)."""
+    return redis.from_url(settings.redis_url, decode_responses=True)
+
+
+async def save_market_data(symbol: str, data: dict, client: redis.Redis | None = None) -> None:
+    r = client or redis_client
+    await r.set(
         f"market:{symbol}",
         json.dumps(data)
     )
 
-def get_market_data(symbol):
-    data = redis_client.get(f"market:{symbol}")
+
+async def get_market_data(symbol: str, client: redis.Redis | None = None) -> dict | None:
+    r = client or redis_client
+    data = await r.get(f"market:{symbol}")
     if data:
         return json.loads(data)
     return None
 
-def save_market_analysis(gainers, losers):
-    redis_client.set(
+
+async def save_market_analysis(gainers: list, losers: list, client: redis.Redis | None = None) -> None:
+    r = client or redis_client
+    await r.set(
         "market:analysis",
         json.dumps({
             "gainers": gainers,
@@ -36,8 +47,10 @@ def save_market_analysis(gainers, losers):
         })
     )
 
-def get_market_analysis():
-    data = redis_client.get("market:analysis")
+
+async def get_market_analysis(client: redis.Redis | None = None) -> dict:
+    r = client or redis_client
+    data = await r.get("market:analysis")
     if data:
         try:
             return json.loads(data)

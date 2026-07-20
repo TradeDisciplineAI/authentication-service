@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 from sqlalchemy import or_, select
@@ -20,6 +21,9 @@ class UserService:
         user_data: UserCreate,
     ) -> User:
         """Register a new user."""
+
+        # Compute hash before DB query to avoid holding connections
+        hashed_pw = await asyncio.to_thread(hash_password, user_data.password)
 
         # Check whether the username or email already exists.
         result = await db.execute(
@@ -48,7 +52,7 @@ class UserService:
         user = User(
             username=user_data.username,
             email=user_data.email,
-            hashed_password=hash_password(user_data.password),
+            hashed_password=hashed_pw,
             is_verified=False,
         )
 

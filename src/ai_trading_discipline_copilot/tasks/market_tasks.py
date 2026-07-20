@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 
 from ai_trading_discipline_copilot.core.celery import celery_app
 from ai_trading_discipline_copilot.core.redis import (
-    get_market_data,
+    get_redis_client,
     save_market_analysis,
     save_market_data,
 )
@@ -31,82 +31,80 @@ async def _fetch_all_quotes(symbols, yfinance_service):
                 valid_results[res[0]] = res[1]
     return valid_results
 
-@celery_app.task
-def update_market_price():
-    # Initialize Yahoo Finance Service
-    yfinance_service = YFinanceService()
 
-    # Grab all the stocks from your YFinanceService WATCHLIST
+async def _update_market_price_async():
+    yfinance_service = YFinanceService()
     symbols = yfinance_service.WATCHLIST
 
     gainers = []
     losers = []
 
-    # Fetch all quotes concurrently (much faster!)
-    quotes_map = asyncio.run(_fetch_all_quotes(symbols, yfinance_service))
+    # Manage Redis client lifecycle explicitly within this task's event loop
+    redis_client = get_redis_client()
+    try:
+        quotes_map = await _fetch_all_quotes(symbols, yfinance_service)
 
-    for symbol in symbols:
-        if symbol not in quotes_map:
-            continue
+        for symbol in symbols:
+            if symbol not in quotes_map:
+                continue
 
-        # Get old price from Redis
-        old_data = get_market_data(symbol)
-        old_price = old_data.get("price") if old_data else None
+            try:
+                quote = quotes_map[symbol]
+                new_price = quote.current_price
 
-        # Process the newly fetched price
-        try:
-            quote = quotes_map[symbol]
-            new_price = quote.current_price
-
-            new_data = {
-                "symbol": symbol,
-                "price": new_price,
-                "timestamp": datetime.now(UTC).isoformat(),
-                "previous_close": quote.previous_close,
-                "currency": quote.currency
-            }
-
-            # Save new price to Redis
-            save_market_data(symbol, new_data)
-
-            # Compare and categorize based on daily previous close
-            if quote.previous_close is not None and quote.previous_close > 0:
-                percent_change = ((new_price - quote.previous_close) / quote.previous_close) * 100
-                stock_data = {
+                new_data = {
                     "symbol": symbol,
-                    "price": round(new_price, 5),
-                    "percent_change": round(percent_change, 2),
+                    "price": new_price,
+                    "timestamp": datetime.now(UTC).isoformat(),
+                    "previous_close": quote.previous_close,
                     "currency": quote.currency
                 }
 
-                if new_price > quote.previous_close:
-                    gainers.append(stock_data)
-                elif new_price < quote.previous_close:
-                    losers.append(stock_data)
+                await save_market_data(symbol, new_data, client=redis_client)
 
-            logger.info("Updated REAL %s: %s", symbol, new_data)
+                if quote.previous_close is not None and quote.previous_close > 0:
+                    percent_change = ((new_price - quote.previous_close) / quote.previous_close) * 100
+                    stock_data = {
+                        "symbol": symbol,
+                        "price": round(new_price, 5),
+                        "percent_change": round(percent_change, 2),
+                        "currency": quote.currency
+                    }
 
-        except Exception:
-            logger.exception("Error processing real data for %s", symbol)
+                    if new_price > quote.previous_close:
+                        gainers.append(stock_data)
+                    elif new_price < quote.previous_close:
+                        losers.append(stock_data)
 
-    # Log Gainers and Losers Analysis
-    logger.info("=" * 30)
-    logger.info("MARKET ANALYSIS (GAINERS & LOSERS)")
-    logger.info("=" * 30)
-    if gainers:
-        logger.info("📈 GAINERS:")
-        for g in gainers:
-            logger.info("  - %s (↑ $%s / +%s%%)", g["symbol"], g["price"], g["percent_change"])
-    else:
-        logger.info("📈 GAINERS: None")
+                logger.info("Updated REAL %s: %s", symbol, new_data)
 
-    if losers:
-        logger.info("📉 LOSERS:")
-        for item in losers:
-            logger.info("  - %s (↓ $%s / %s%%)", item["symbol"], item["price"], item["percent_change"])
-    else:
-        logger.info("📉 LOSERS: None")
-    logger.info("=" * 30)
-    save_market_analysis(gainers, losers)
+            except Exception:
+                logger.exception("Error processing real data for %s", symbol)
 
-    return "Market Updated"
+        logger.info("=" * 30)
+        logger.info("MARKET ANALYSIS (GAINERS & LOSERS)")
+        logger.info("=" * 30)
+        if gainers:
+            logger.info("📈 GAINERS:")
+            for g in gainers:
+                logger.info("  - %s (↑ $%s / +%s%%)", g["symbol"], g["price"], g["percent_change"])
+        else:
+            logger.info("📈 GAINERS: None")
+
+        if losers:
+            logger.info("📉 LOSERS:")
+            for item in losers:
+                logger.info("  - %s (↓ $%s / %s%%)", item["symbol"], item["price"], item["percent_change"])
+        else:
+            logger.info("📉 LOSERS: None")
+        logger.info("=" * 30)
+
+        await save_market_analysis(gainers, losers, client=redis_client)
+        return "Market Updated"
+    finally:
+        await redis_client.aclose()
+
+
+@celery_app.task
+def update_market_price():
+    return asyncio.run(_update_market_price_async())
