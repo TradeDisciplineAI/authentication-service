@@ -102,7 +102,7 @@ async def _update_market_price_async():
         await save_market_analysis(gainers, losers, client=redis_client)
         return "Market Updated"
     finally:
-        await redis_client.aclose()
+        await redis_client.close()
 
 
 @celery_app.task

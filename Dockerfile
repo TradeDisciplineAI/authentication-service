@@ -10,11 +10,10 @@ WORKDIR /app
 ENV UV_LINK_MODE=copy
 ENV UV_COMPILE_BYTECODE=1
 
-COPY pyproject.toml ./
+COPY pyproject.toml uv.lock* ./
 
 # Install only dependencies
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync \
+RUN uv sync \
     --python /usr/local/bin/python3 \
     --no-install-project \
     --no-dev
@@ -22,8 +21,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 COPY . .
 
 # Install the project
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync \
+RUN uv sync \
     --python /usr/local/bin/python3 \
     --no-dev
 
