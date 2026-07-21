@@ -30,12 +30,5 @@ celery_app.conf.update(
     # Task Imports
     imports=[
         "ai_trading_discipline_copilot.tasks.system_tasks",
-        "ai_trading_discipline_copilot.tasks.market_tasks",
     ],
-    beat_schedule={
-        "update-market-price-every-30s": {
-            "task": "ai_trading_discipline_copilot.tasks.market_tasks.update_market_price",
-            "schedule": 30.0,
-        },
-    },
 )

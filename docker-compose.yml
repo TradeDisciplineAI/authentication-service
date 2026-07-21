@@ -12,7 +12,7 @@
 # =============================================================================
 
 services:
-  app:
+  auth_app:
     build:
       context: .
       dockerfile: Dockerfile
