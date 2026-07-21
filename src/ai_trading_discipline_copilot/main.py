@@ -76,5 +76,13 @@ async def health() -> dict[str, str]:
     return {"status": "ok", "version": settings.app_version, "env": settings.app_env}
 
 
+@app.get("/health/celery-ping")
+async def celery_ping() -> dict[str, str]:
+    from ai_trading_discipline_copilot.tasks.system_tasks import ping_auth_worker
+
+    task = ping_auth_worker.delay()
+    return {"status": "enqueued", "task_id": task.id, "queue": "auth_queue"}
+
+
 app.include_router(auth_router)
 app.include_router(dashboard_router)

@@ -24,16 +24,6 @@ from alembic import op
 def upgrade() -> None:
     schemas = [
         "auth",
-        "market",
-        "sentiment",
-        "strategy",
-        "risk",
-        "execution",
-        "learning",
-        "discipline",
-        "analytics",
-        "audit",
-        "system",
     ]
 
     for schema in schemas:
@@ -42,16 +32,6 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     schemas = [
-        "system",
-        "audit",
-        "analytics",
-        "discipline",
-        "learning",
-        "execution",
-        "risk",
-        "strategy",
-        "sentiment",
-        "market",
         "auth",
     ]
 

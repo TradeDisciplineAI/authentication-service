@@ -1,3 +1,16 @@
+# =============================================================================
+# Authentication Service — Docker Compose Specification
+#
+# Services:
+#   - app: FastAPI Web Application
+#   - celery_worker: Background Task Worker
+#   - celery_beat: Background Scheduler
+#
+# Infrastructure:
+#   Connects to shared PostgreSQL ('shared_db') and shared Redis ('shared_redis')
+#   via external network 'trading_network'.
+# =============================================================================
+
 services:
   app:
     build:
@@ -6,6 +19,7 @@ services:
     container_name: trading_app
     ports:
       - "8000:8000"
+    command: ["sh", "-c", "alembic upgrade head && uvicorn ai_trading_discipline_copilot.main:app --host 0.0.0.0 --port 8000"]
 
     environment:
       - APP_NAME=AI Trading Discipline Copilot
@@ -18,7 +32,8 @@ services:
       - ACCESS_TOKEN_EXPIRE_MINUTES=30
       - ENABLE_LOGIN_RATE_LIMITING=${ENABLE_LOGIN_RATE_LIMITING:-false}
 
-      - DATABASE_URL=postgresql+asyncpg://postgres:${POSTGRES_PASSWORD}@db:5432/trading_db
+      - DATABASE_URL=postgresql+asyncpg://postgres:${POSTGRES_PASSWORD}@shared_db:5432/trading_db
+      - REDIS_URL=redis://shared_redis:6379/0
 
       - AI_PROVIDER=openai
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
@@ -34,15 +49,9 @@ services:
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
 
-    depends_on:
-      db:
-        condition: service_healthy
+    networks:
+      - trading_network
 
-    restart: always
-
-  redis:
-    image: redis:7-alpine
-    container_name: trading_redis
     restart: always
 
   celery_worker:
@@ -51,24 +60,19 @@ services:
       dockerfile: Dockerfile
     container_name: trading_celery
 
-    command: >
-      celery
-      -A ai_trading_discipline_copilot.core.celery.celery_app
-      worker
-      --loglevel=info
+    command: ["celery", "-A", "ai_trading_discipline_copilot.core.celery.celery_app", "worker", "-Q", "auth_queue", "--loglevel=info"]
 
     environment:
-      - REDIS_URL=redis://redis:6379/0
-      - DATABASE_URL=postgresql+asyncpg://postgres:${POSTGRES_PASSWORD}@db:5432/trading_db
+      - REDIS_URL=redis://shared_redis:6379/0
+      - DATABASE_URL=postgresql+asyncpg://postgres:${POSTGRES_PASSWORD}@shared_db:5432/trading_db
       - SECRET_KEY=${SECRET_KEY}
       - FINNHUB_API_KEY=${FINNHUB_API_KEY}
       - RESEND_API_KEY=${RESEND_API_KEY}
       - EMAIL_FROM=${EMAIL_FROM}
       - FRONTEND_URL=${FRONTEND_URL}
 
-    depends_on:
-      - redis
-      - db
+    networks:
+      - trading_network
 
     restart: always
 
@@ -86,42 +90,19 @@ services:
       --schedule=/tmp/celerybeat-schedule.db
 
     environment:
-      - REDIS_URL=redis://redis:6379/0
-      - DATABASE_URL=postgresql+asyncpg://postgres:${POSTGRES_PASSWORD}@db:5432/trading_db
+      - REDIS_URL=redis://shared_redis:6379/0
+      - DATABASE_URL=postgresql+asyncpg://postgres:${POSTGRES_PASSWORD}@shared_db:5432/trading_db
       - SECRET_KEY=${SECRET_KEY}
       - FINNHUB_API_KEY=${FINNHUB_API_KEY}
       - RESEND_API_KEY=${RESEND_API_KEY}
       - EMAIL_FROM=${EMAIL_FROM}
       - FRONTEND_URL=${FRONTEND_URL}
 
-    depends_on:
-      - redis
-      - db
+    networks:
+      - trading_network
 
     restart: always
 
-  db:
-    image: postgres:16-alpine
-    container_name: trading_db
-
-    ports:
-      - "5433:5432"
-
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=trading_db
-
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d trading_db"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-    restart: always
-
-volumes:
-  pgdata:
+networks:
+  trading_network:
+    external: true

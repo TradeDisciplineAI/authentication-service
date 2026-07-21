@@ -38,8 +38,25 @@ alembic/                ← Database migrations
 
 ### 1. Prerequisites
 - Python 3.13+
-- PostgreSQL running locally (or via Docker)
+- Shared PostgreSQL running via `infrastructure` repository on Docker network `trading_network`
 - [uv](https://docs.astral.sh/uv/) installed
+
+### 1.1 Docker Network Setup
+Create the shared external network once:
+```bash
+docker network create trading_network
+```
+
+### 1.2 Start Shared Infrastructure & Authentication Service
+```bash
+# Start shared PostgreSQL from infrastructure repository
+cd ../infrastructure
+docker compose up -d
+
+# Start Authentication Service
+cd ../authentication-service
+docker compose up --build
+```
 
 ### 2. Setup Development Environment
 Clone the repository and run the setup script to automatically configure your environment:

@@ -34,5 +34,3 @@ docker-compose.yml
 # Local database / Alembic auto-gen artifacts
 *.db
 *.sqlite
-alembic/versions/*
-!alembic/versions/.gitkeep
