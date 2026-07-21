@@ -44,6 +44,7 @@ COPY --from=builder --chown=appuser:appgroup /app/alembic.ini /app/alembic.ini
 ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONPATH="/app/src"
 ENV PYTHONUNBUFFERED=1
+ENV HOME=/tmp
 
 USER appuser
 
