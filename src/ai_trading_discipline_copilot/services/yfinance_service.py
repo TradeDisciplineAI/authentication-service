@@ -3,6 +3,11 @@ import logging
 
 import yfinance as yf
 
+try:
+    yf.set_tz_cache_location("/tmp/py-yfinance")
+except Exception:
+    pass
+
 from ai_trading_discipline_copilot.schemas.gainers import GainerStock
 from ai_trading_discipline_copilot.schemas.stock import StockQuote
 

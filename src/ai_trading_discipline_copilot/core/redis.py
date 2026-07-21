@@ -53,7 +53,20 @@ async def get_market_analysis(client: redis.Redis | None = None) -> dict:
     data = await r.get("market:analysis")
     if data:
         try:
-            return json.loads(data)
+            parsed = json.loads(data)
+            if parsed.get("gainers") or parsed.get("losers"):
+                return parsed
         except Exception:
             logger.exception("Failed to parse market analysis from Redis")
+
+    # Cold start fallback: fetch immediately if cache is empty
+    try:
+        from ai_trading_discipline_copilot.tasks.market_tasks import _update_market_price_async
+        await _update_market_price_async()
+        data = await r.get("market:analysis")
+        if data:
+            return json.loads(data)
+    except Exception:
+        logger.exception("Failed to populate market analysis on cold start")
+
     return {"gainers": [], "losers": [], "last_updated": None}

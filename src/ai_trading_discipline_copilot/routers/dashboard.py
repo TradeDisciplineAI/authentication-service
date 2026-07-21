@@ -50,5 +50,7 @@ async def websocket_market_endpoint(websocket: WebSocket):
         # Keep connection open infinitely
         while True:
             await websocket.receive_text()
-    except WebSocketDisconnect:
+    except (WebSocketDisconnect, RuntimeError, Exception) as e:
+        logger.debug(f"WebSocket connection closed: {e}")
+    finally:
         manager.disconnect(websocket)
