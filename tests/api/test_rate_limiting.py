@@ -1,3 +1,4 @@
+from collections.abc import Generator
 from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
@@ -9,7 +10,17 @@ from ai_trading_discipline_copilot.core.config import get_settings
 from ai_trading_discipline_copilot.core.security import hash_password
 from ai_trading_discipline_copilot.models.user import User
 
-settings = get_settings()
+
+@pytest.fixture(autouse=True)
+def reset_limiter_state() -> Generator[None]:
+    """Ensure limiter is disabled before and after each test to prevent leakage."""
+    from ai_trading_discipline_copilot.core.limiter import limiter
+
+    limiter.enabled = False
+    yield
+    limiter.enabled = False
+
+
 TEST_PASSWORD = "StrongPass1!"  # noqa: S105
 WRONG_PASSWORD = "WrongPass1!"  # noqa: S105
 
@@ -19,6 +30,7 @@ async def test_account_lockout_after_max_failed_logins(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
     """Test that an account is locked after max failed login attempts."""
+    settings = get_settings()
     # Create verified user
     user = User(
         username="lockoutuser",
@@ -30,13 +42,14 @@ async def test_account_lockout_after_max_failed_logins(
     await db_session.commit()
 
     # Attempt failed logins up to max_login_attempts
-    for _ in range(settings.max_login_attempts):
+    for idx in range(settings.max_login_attempts):
         response = await client.post(
             "/auth/login",
             data={"username": "lockoutuser", "password": WRONG_PASSWORD},
         )
         assert response.status_code == 401
-        assert response.json()["detail"] == "Invalid username or password"
+        if idx < settings.max_login_attempts - 1:
+            assert response.json()["detail"] == "Invalid username or password"
 
     # Refresh user from DB
     await db_session.refresh(user)

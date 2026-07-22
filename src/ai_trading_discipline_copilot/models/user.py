@@ -27,7 +27,7 @@ class UserRole(enum.StrEnum):
 
 class User(Base):
     __tablename__ = "users"
-    __table_args__ = {"schema": "auth"}
+    __table_args__ = {"schema": "public"}
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -67,7 +67,7 @@ class User(Base):
         Enum(
             UserRole,
             name="user_role",
-            schema="auth",
+            schema="public",
         ),
         default=UserRole.USER,
         nullable=False,
