@@ -27,7 +27,7 @@ class UserRole(enum.StrEnum):
 
 class User(Base):
     __tablename__ = "users"
-    __table_args__ = {"schema": "auth"}
+    __table_args__ = {"schema": "authentication"}
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -38,26 +38,28 @@ class User(Base):
     username: Mapped[str] = mapped_column(
         String(50),
         unique=True,
-        nullable=False,
         index=True,
+        nullable=False,
     )
 
     email: Mapped[str] = mapped_column(
         String(255),
         unique=True,
-        nullable=False,
         index=True,
+        nullable=False,
     )
 
     hashed_password: Mapped[str | None] = mapped_column(
         String(255),
         nullable=True,
     )
+
     google_id: Mapped[str | None] = mapped_column(
         String(255),
         unique=True,
-        nullable=True,
         index=True,
+        nullable=True,
+        default=None,
     )
     refresh_tokens: Mapped[list[RefreshToken]] = relationship(
         back_populates="user",
@@ -67,7 +69,7 @@ class User(Base):
         Enum(
             UserRole,
             name="user_role",
-            schema="auth",
+            schema="authentication",
         ),
         default=UserRole.USER,
         nullable=False,
