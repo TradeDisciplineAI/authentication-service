@@ -18,13 +18,29 @@ from ai_trading_discipline_copilot.models.user import User
 
 logger = logging.getLogger(__name__)
 
+# Single source of truth — conftest.py sets TEST_DATABASE_URL before any fixture runs.
 LOCAL_TEST_DB = os.getenv(
     "TEST_DATABASE_URL",
     "postgresql+asyncpg://postgres:postgres@localhost:5434/trading_test_db",
 )
 parsed = urlsplit(LOCAL_TEST_DB)
 TEST_DATABASE_URL = LOCAL_TEST_DB
+
+# Derive the database name and admin URL directly from TEST_DATABASE_URL so
+# create_test_db() always targets the same database as the test engine.
+_db_name = parsed.path.lstrip("/")  # e.g. "trading_test_db"
 admin_url = urlunsplit(parsed._replace(path="/postgres"))
+
+# Guard: only allow destructive schema resets on local/test hosts to prevent
+# accidentally nuking a shared or production database.
+_SAFE_HOSTS = {"localhost", "127.0.0.1", "::1", "shared_test_db"}
+_test_host = parsed.hostname or ""
+if _test_host not in _SAFE_HOSTS:
+    raise RuntimeError(
+        f"TEST_DATABASE_URL points to non-local host '{_test_host}'. "
+        "Destructive schema resets are only allowed on local test databases. "
+        "Set TEST_DATABASE_URL to a localhost instance."
+    )
 
 
 async def create_test_db() -> None:
@@ -33,13 +49,22 @@ async def create_test_db() -> None:
         engine = create_async_engine(admin_url, isolation_level="AUTOCOMMIT")
         async with engine.connect() as conn:
             result = await conn.execute(
-                text("SELECT 1 FROM pg_database WHERE datname='trading_test_db'")
+                text(f"SELECT 1 FROM pg_database WHERE datname='{_db_name}'")  # noqa: S608
             )
             if not result.scalar():
-                await conn.execute(text("CREATE DATABASE trading_test_db"))
+                await conn.execute(text(f'CREATE DATABASE "{_db_name}"'))  # noqa: S608
         await engine.dispose()
-    except Exception as exc:
-        logger.debug("Database creation skipped: %s", exc)
+    except OSError as exc:
+        # PostgreSQL host not reachable (e.g. Docker not started) — skip creation.
+        logger.debug("Test DB host unreachable, skipping creation: %s", exc)
+    except Exception as exc:  # noqa: BLE001
+        # Covers asyncpg connection errors and "already exists" races.
+        # Re-raise anything that is not a connection-level failure so real
+        # misconfigurations surface immediately instead of being silently hidden.
+        if "already exists" in str(exc).lower() or "connection" in str(exc).lower():
+            logger.debug("Database creation skipped: %s", exc)
+        else:
+            raise
 
 
 # Enterprise PostgreSQL schemas used by the application.
