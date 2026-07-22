@@ -45,7 +45,7 @@ async def create_test_db() -> None:
 # Enterprise PostgreSQL schemas used by the application.
 SCHEMAS = (
     "public",
-    "auth",
+    "authentication",
     "market",
     "sentiment",
     "strategy",

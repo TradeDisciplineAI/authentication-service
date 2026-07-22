@@ -19,21 +19,22 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    """Move authentication tables to the auth schema."""
+    """Move authentication tables to the authentication schema."""
+    op.execute("CREATE SCHEMA IF NOT EXISTS authentication")
 
-    op.execute("ALTER TABLE public.users SET SCHEMA auth")
-    op.execute("ALTER TABLE public.refresh_tokens SET SCHEMA auth")
-    op.execute("ALTER TABLE public.password_reset_tokens SET SCHEMA auth")
-    op.execute("ALTER TABLE public.email_verification_tokens SET SCHEMA auth")
+    op.execute("ALTER TABLE public.users SET SCHEMA authentication")
+    op.execute("ALTER TABLE public.refresh_tokens SET SCHEMA authentication")
+    op.execute("ALTER TABLE public.password_reset_tokens SET SCHEMA authentication")
+    op.execute("ALTER TABLE public.email_verification_tokens SET SCHEMA authentication")
 
-    op.execute("ALTER TYPE public.user_role SET SCHEMA auth")
+    op.execute("ALTER TYPE public.user_role SET SCHEMA authentication")
 
 def downgrade() -> None:
     """Move authentication tables back to the public schema."""
 
-    op.execute("ALTER TABLE auth.email_verification_tokens SET SCHEMA public")
-    op.execute("ALTER TABLE auth.password_reset_tokens SET SCHEMA public")
-    op.execute("ALTER TABLE auth.refresh_tokens SET SCHEMA public")
-    op.execute("ALTER TABLE auth.users SET SCHEMA public")
+    op.execute("ALTER TABLE authentication.email_verification_tokens SET SCHEMA public")
+    op.execute("ALTER TABLE authentication.password_reset_tokens SET SCHEMA public")
+    op.execute("ALTER TABLE authentication.refresh_tokens SET SCHEMA public")
+    op.execute("ALTER TABLE authentication.users SET SCHEMA public")
 
-    op.execute("ALTER TYPE auth.user_role SET SCHEMA public")
+    op.execute("ALTER TYPE authentication.user_role SET SCHEMA public")
