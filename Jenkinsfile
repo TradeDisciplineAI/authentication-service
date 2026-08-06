@@ -17,6 +17,10 @@ pipeline {
         COMPOSE_PROJECT_NAME = "auth_ci_${env.BUILD_NUMBER}"
         TEST_DATABASE_URL    = 'postgresql+asyncpg://postgres:postgres@shared_test_db:5432/trading_test_db'
         DATABASE_URL         = 'postgresql+asyncpg://postgres:postgres@shared_test_db:5432/trading_test_db'
+        SECRET_KEY           = 'ci-dummy-secret-key-32-characters-minimum'
+        RESEND_API_KEY       = 're_dummy_resend_api_key_for_ci_testing_purposes'
+        EMAIL_FROM           = 'noreply@example.com'
+        FRONTEND_URL         = 'http://localhost:3000'
         PROD_IMAGE_TAG       = "authentication-service:ci-${env.BUILD_NUMBER}"
     }
 
@@ -262,6 +266,31 @@ pipeline {
                         sh "docker logs shared_test_db"
                         error "FAIL: Database did not become healthy within 60 seconds."
                     }
+                }
+            }
+        }
+        stage('Validate Environment Variables') {
+            steps {
+                script {
+                    echo '=== STAGE: Validate Environment Variables ==='
+                    def requiredVars = ['SECRET_KEY', 'DATABASE_URL', 'RESEND_API_KEY', 'EMAIL_FROM', 'FRONTEND_URL']
+                    def missingVars = []
+                    for (varName in requiredVars) {
+                        def val = env."${varName}"
+                        if (val == null || val.trim() == "") {
+                            missingVars.add(varName)
+                        }
+                    }
+                    if (missingVars.size() > 0) {
+                        error "FAIL: Missing required environment variables: ${missingVars.join(', ')}"
+                    }
+
+                    // Validate SECRET_KEY length
+                    if (env.SECRET_KEY.length() < 32) {
+                        error "FAIL: SECRET_KEY must be at least 32 characters (current length: ${env.SECRET_KEY.length()})"
+                    }
+
+                    echo 'All required environment variables validated successfully.'
                 }
             }
         }
