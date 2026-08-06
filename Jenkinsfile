@@ -125,9 +125,9 @@ pipeline {
                 script {
                     echo '=== STAGE: Ruff Lint ==='
                     echo 'Running linter, import sorter, and security checks...'
-                    echo 'Executing: ruff check (generating checkstyle output)'
+                    echo 'Executing: ruff check (generating ruff-log.txt)'
                 }
-                sh "docker compose run --rm -v ${env.WORKSPACE}/${env.REPORTS_DIR}:/app/${env.REPORTS_DIR} ${env.APP_SERVICE} uv run ruff check --output-format=checkstyle --output-file=${env.REPORTS_DIR}/ruff-checkstyle.xml src tests"
+                sh "docker compose run --rm -v ${env.WORKSPACE}/${env.REPORTS_DIR}:/app/${env.REPORTS_DIR} ${env.APP_SERVICE} uv run ruff check --output-file=${env.REPORTS_DIR}/ruff-log.txt src tests"
                 script {
                     echo 'Ruff linting checks completed successfully.'
                 }
@@ -331,13 +331,13 @@ pipeline {
 
                 echo 'Publishing static analysis warnings reports...'
 
-                if (fileExists("${env.REPORTS_DIR}/ruff-checkstyle.xml")) {
+                if (fileExists("${env.REPORTS_DIR}/ruff-log.txt")) {
                     recordIssues(
                         enabledForFailure: true,
-                        tools: [checkStyle(pattern: "${env.REPORTS_DIR}/ruff-checkstyle.xml", id: 'ruff', name: 'Ruff Lint')]
+                        tools: [ruff(pattern: "${env.REPORTS_DIR}/ruff-log.txt", id: 'ruff', name: 'Ruff Lint')]
                     )
                 } else {
-                    echo "WARNING: Ruff checkstyle report is missing!"
+                    echo "WARNING: Ruff lint report is missing!"
                     currentBuild.result = 'UNSTABLE'
                 }
 
