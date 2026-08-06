@@ -185,11 +185,39 @@ pipeline {
             steps {
                 script {
                     echo '=== STAGE: Ensure Test Infrastructure ==='
-                    echo 'Starting PostgreSQL and Redis containers if stopped...'
-                    echo 'Executing: docker compose -f infrastructure/docker-compose.yml -p trading_infra up -d test_db redis'
-                }
-                sh 'docker compose -f infrastructure/docker-compose.yml -p trading_infra up -d test_db redis'
-                script {
+
+                    // Check if shared_test_db is running (exits 0 if running)
+                    boolean dbRunning = sh(
+                        script: "docker ps -q -f name=shared_test_db -f status=running | grep .",
+                        returnStatus: true
+                    ) == 0
+
+                    // Check if shared_redis is running (exits 0 if running)
+                    boolean redisRunning = sh(
+                        script: "docker ps -q -f name=shared_redis -f status=running | grep .",
+                        returnStatus: true
+                    ) == 0
+
+                    if (dbRunning && redisRunning) {
+                        echo "Both shared_test_db and shared_redis are already running. Reusing existing containers."
+                    } else {
+                        String startServices = ""
+                        if (!dbRunning) {
+                            echo "shared_test_db is not running. Will start test_db service..."
+                            startServices += " test_db"
+                        } else {
+                            echo "shared_test_db is already running. Reusing it."
+                        }
+                        if (!redisRunning) {
+                            echo "shared_redis is not running. Will start redis service..."
+                            startServices += " redis"
+                        } else {
+                            echo "shared_redis is already running. Reusing it."
+                        }
+
+                        echo "Executing: docker compose -f infrastructure/docker-compose.yml -p trading_infra up -d${startServices}"
+                        sh "docker compose -f infrastructure/docker-compose.yml -p trading_infra up -d${startServices}"
+                    }
                     echo 'Infrastructure start checks completed.'
                 }
             }
@@ -338,8 +366,8 @@ pipeline {
                 echo "Tearing down application compose project: ${env.COMPOSE_PROJECT_NAME}..."
                 sh "docker compose -p ${env.COMPOSE_PROJECT_NAME} down -v || true"
 
-                echo 'Tearing down infrastructure compose project...'
-                sh 'docker compose -f infrastructure/docker-compose.yml -p trading_infra down -v || true'
+                // Keep the shared infrastructure running across builds to prevent resource recreation
+                echo "Shared infrastructure project 'trading_infra' remains running."
 
                 echo 'Publishing static analysis warnings reports...'
 
