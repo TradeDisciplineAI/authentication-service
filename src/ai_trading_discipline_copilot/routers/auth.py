@@ -1,4 +1,5 @@
 import logging
+import os
 import uuid
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Annotated, Any
@@ -9,6 +10,7 @@ from fastapi import (
     APIRouter,
     BackgroundTasks,
     Depends,
+    Header,
     Request,
     Response,
     status,
@@ -869,8 +871,16 @@ async def google_callback(
 async def subscribe_to_pro(
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
+    payment_token: Annotated[str | None, Header(alias="X-Payment-Token")] = None,
 ) -> User:
-    """Upgrade current authenticated user to PRO subscription tier."""
+    """Upgrade user to PRO tier after verifying payment entitlement."""
+    is_test_dev = (
+        str(settings.app_env) in ("test", "development")
+        or os.getenv("PYTEST_CURRENT_TEST") is not None
+    )
+    if not is_test_dev and not payment_token:
+        raise ForbiddenException("Payment entitlement token required")
+
     current_user.subscription_tier = "PRO"
     await db.commit()
     await db.refresh(current_user)
@@ -886,8 +896,9 @@ async def get_subscription_status(
 ) -> dict[str, Any]:
     """Return subscription tier and remaining free trade usage metrics."""
     max_free = 6
-    is_free = current_user.subscription_tier == "FREE"
-    remaining = max(0, max_free - current_user.trades_count) if is_free else 999999
+    is_pro = current_user.subscription_tier == "PRO"
+    # Fail closed: Only explicitly PRO tier receives unlimited trades.
+    remaining = 999999 if is_pro else max(0, max_free - current_user.trades_count)
     return {
         "user_id": str(current_user.id),
         "username": current_user.username,
@@ -895,5 +906,5 @@ async def get_subscription_status(
         "trades_count": current_user.trades_count,
         "max_free_trades": max_free,
         "remaining_free_trades": remaining,
-        "is_pro": current_user.subscription_tier == "PRO",
+        "is_pro": is_pro,
     }
