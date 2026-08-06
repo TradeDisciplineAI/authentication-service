@@ -28,6 +28,18 @@ pipeline {
                     echo 'Checking out code from version control...'
                 }
                 checkout scm
+                script {
+                    echo 'Checking out shared infrastructure repository...'
+                    checkout([
+                        $class: 'GitSCM',
+                        branches: [[name: '*/main']],
+                        extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir: 'infrastructure']],
+                        userRemoteConfigs: [[
+                            url: 'https://github.com/TradeDisciplineAI/infrastructure.git',
+                            credentialsId: 'github-pat'
+                        ]]
+                    ])
+                }
             }
         }
 
@@ -174,9 +186,9 @@ pipeline {
                 script {
                     echo '=== STAGE: Ensure Test Infrastructure ==='
                     echo 'Starting PostgreSQL and Redis containers if stopped...'
-                    echo 'Executing: docker compose -f ../infrastructure/docker-compose.yml -p trading_infra up -d test_db redis'
+                    echo 'Executing: docker compose -f infrastructure/docker-compose.yml -p trading_infra up -d test_db redis'
                 }
-                sh 'docker compose -f ../infrastructure/docker-compose.yml -p trading_infra up -d test_db redis'
+                sh 'docker compose -f infrastructure/docker-compose.yml -p trading_infra up -d test_db redis'
                 script {
                     echo 'Infrastructure start checks completed.'
                 }
@@ -196,7 +208,7 @@ pipeline {
                     for (int i = 1; i <= attempts; i++) {
                         echo "Attempt ${i} of ${attempts}: Checking database connection via pg_isready..."
                         int status = sh(
-                            script: "docker compose -f ../infrastructure/docker-compose.yml -p trading_infra exec -T test_db pg_isready -U postgres",
+                            script: "docker compose -f infrastructure/docker-compose.yml -p trading_infra exec -T test_db pg_isready -U postgres",
                             returnStatus: true
                         )
                         if (status == 0) {
@@ -327,7 +339,7 @@ pipeline {
                 sh "docker compose -p ${env.COMPOSE_PROJECT_NAME} down -v || true"
 
                 echo 'Tearing down infrastructure compose project...'
-                sh 'docker compose -f ../infrastructure/docker-compose.yml -p trading_infra down -v || true'
+                sh 'docker compose -f infrastructure/docker-compose.yml -p trading_infra down -v || true'
 
                 echo 'Publishing static analysis warnings reports...'
 
