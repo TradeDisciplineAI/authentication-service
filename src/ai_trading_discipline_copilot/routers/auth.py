@@ -772,52 +772,64 @@ async def google_callback(
         raise UnauthorizedException("Invalid OAuth state token") from err
 
     # 2. Exchange authorization code for token
-    async with httpx.AsyncClient() as client:
-        token_response = await client.post(
-            "https://oauth2.googleapis.com/token",
-            data={
-                "code": code,
-                "client_id": settings.google_client_id,
-                "client_secret": settings.google_client_secret.get_secret_value(),
-                "redirect_uri": str(request.url_for("google_callback")),
-                "grant_type": "authorization_code",
-            },
-        )
-        if token_response.status_code != 200:
-            error_code = "unknown_error"
-            error_desc = "No description provided"
-            import contextlib
-
-            with contextlib.suppress(Exception):
-                err_data = token_response.json()
-                error_code = err_data.get("error", error_code)
-                error_desc = err_data.get("error_description", error_desc)
-            # nosemgrep - logs only status, error code, and desc, no credentials
-            logger.error(
-                "Google token exchange failed: status=%s, error=%s, description=%s",
-                token_response.status_code,
-                error_code,
-                error_desc,
+    try:
+        async with httpx.AsyncClient() as client:
+            token_response = await client.post(
+                "https://oauth2.googleapis.com/token",
+                data={
+                    "code": code,
+                    "client_id": settings.google_client_id,
+                    "client_secret": settings.google_client_secret.get_secret_value(),
+                    "redirect_uri": str(request.url_for("google_callback")),
+                    "grant_type": "authorization_code",
+                },
+                timeout=10.0,
             )
-            raise UnauthorizedException(
-                "Failed to exchange authorization code with Google"
+            if token_response.status_code != 200:
+                error_code = "unknown_error"
+                error_desc = "No description provided"
+                import contextlib
+
+                with contextlib.suppress(Exception):
+                    err_data = token_response.json()
+                    error_code = err_data.get("error", error_code)
+                    error_desc = err_data.get("error_description", error_desc)
+                # nosemgrep - logs only status, error code, and desc, no credentials
+                logger.error(
+                    "Google token exchange failed: status=%s, error=%s, description=%s",
+                    token_response.status_code,
+                    error_code,
+                    error_desc,
+                )
+                raise UnauthorizedException(
+                    "Failed to exchange authorization code with Google"
+                )
+
+            tokens = token_response.json()
+            access_token = tokens.get("access_token")
+            if not access_token:
+                raise UnauthorizedException(
+                    "Failed to retrieve access token from Google"
+                )
+
+            # 3. Fetch user profile from Google
+            userinfo_response = await client.get(
+                "https://www.googleapis.com/oauth2/v3/userinfo",
+                headers={"Authorization": f"Bearer {access_token}"},
+                timeout=10.0,
             )
+            if userinfo_response.status_code != 200:
+                logger.error(
+                    "Google userinfo request failed: %s", userinfo_response.text
+                )
+                raise UnauthorizedException("Failed to fetch user profile from Google")
 
-        tokens = token_response.json()
-        access_token = tokens.get("access_token")
-        if not access_token:
-            raise UnauthorizedException("Failed to retrieve access token from Google")
-
-        # 3. Fetch user profile from Google
-        userinfo_response = await client.get(
-            "https://www.googleapis.com/oauth2/v3/userinfo",
-            headers={"Authorization": f"Bearer {access_token}"},
-        )
-        if userinfo_response.status_code != 200:
-            logger.error("Google userinfo request failed: %s", userinfo_response.text)
-            raise UnauthorizedException("Failed to fetch user profile from Google")
-
-        user_info = userinfo_response.json()
+            user_info = userinfo_response.json()
+    except httpx.HTTPError as err:
+        logger.error("Google API communication failed: %s", str(err))
+        raise UnauthorizedException(
+            "Failed to communicate with Google authentication servers"
+        ) from err
 
     google_id = user_info.get("sub")
     email = user_info.get("email")
