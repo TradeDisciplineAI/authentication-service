@@ -84,25 +84,26 @@ SCHEMAS = (
 )
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 async def db_engine() -> AsyncGenerator[AsyncEngine]:
     """Create a database engine scoped to the test's event loop."""
     await create_test_db()
 
+    from sqlalchemy.pool import NullPool
+
     engine = create_async_engine(
         TEST_DATABASE_URL,
+        poolclass=NullPool,
         connect_args={"statement_cache_size": 0},
     )
 
-    # Recreate schemas for every test to ensure 100% clean test isolation
+    # Create schemas if not existing without destructive drop cascade for fast tests
     async with engine.begin() as conn:
         for schema in SCHEMAS:
             if schema == "public":
-                await conn.execute(text("DROP SCHEMA IF EXISTS public CASCADE"))
-                await conn.execute(text("CREATE SCHEMA public"))
+                await conn.execute(text("CREATE SCHEMA IF NOT EXISTS public"))
             else:
-                await conn.execute(text(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE'))
-                await conn.execute(text(f'CREATE SCHEMA "{schema}"'))
+                await conn.execute(text(f'CREATE SCHEMA IF NOT EXISTS "{schema}"'))
 
         await conn.run_sync(Base.metadata.create_all)
 
@@ -125,13 +126,22 @@ def session_factory(
 @pytest.fixture
 async def db_session(
     session_factory: async_sessionmaker[AsyncSession],
+    patch_session_factory: None,
 ) -> AsyncGenerator[AsyncSession]:
-    """Yield a database session from the test session factory."""
+    """Yield a database session from the test session factory with clean isolation."""
     async with session_factory() as session:
+        # Clean user and token table rows cleanly using DELETE to avoid AccessExclusiveLock deadlocks
+        await session.execute(text("DELETE FROM authentication.refresh_tokens"))
+        await session.execute(
+            text("DELETE FROM authentication.email_verification_tokens")
+        )
+        await session.execute(text("DELETE FROM authentication.password_reset_tokens"))
+        await session.execute(text("DELETE FROM authentication.users"))
+        await session.commit()
         yield session
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def patch_session_factory(
     db_engine: AsyncEngine,
     session_factory: async_sessionmaker[AsyncSession],
@@ -150,11 +160,12 @@ def patch_session_factory(
     database.engine = old_engine
 
 
-# Event listener to set is_verified=True on User instantiation if not explicitly passed.
-# This prevents existing tests from failing since email verification wasn't present.
-
-
+# Event listener to set default fields on User instantiation in tests.
 @event.listens_for(User, "init")
 def receive_init(target: Any, args: Any, kwargs: dict[str, Any]) -> None:
     if "is_verified" not in kwargs:
         kwargs["is_verified"] = True
+    if "trades_count" not in kwargs:
+        kwargs["trades_count"] = 0
+    if "subscription_tier" not in kwargs:
+        kwargs["subscription_tier"] = "FREE"

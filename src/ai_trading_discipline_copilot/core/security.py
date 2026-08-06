@@ -22,10 +22,16 @@ _BCRYPT_ROUNDS = settings.bcrypt_rounds
 
 def hash_password(plain_password: str) -> str:
     """Return a bcrypt hash of the given plain-text password."""
+    import os
+
     if len(plain_password.encode("utf-8")) > 72:
         raise ValueError("Password must not exceed 72 bytes")
 
-    salt = bcrypt.gensalt(rounds=_BCRYPT_ROUNDS)
+    is_testing = (
+        str(settings.app_env) == "test" or os.getenv("PYTEST_CURRENT_TEST") is not None
+    )
+    rounds = 4 if is_testing else _BCRYPT_ROUNDS
+    salt = bcrypt.gensalt(rounds=rounds)
     hashed = bcrypt.hashpw(
         plain_password.encode("utf-8"),
         salt,

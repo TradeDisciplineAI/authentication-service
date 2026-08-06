@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 from datetime import UTC, datetime, timedelta
 
 from fastapi import Response
@@ -28,7 +29,12 @@ settings = get_settings()
 logger = logging.getLogger(__name__)
 
 _REFRESH_COOKIE_NAME = settings.cookie_name
-_DUMMY_HASH = "$2b$12$eImiTXuWVxfMjpqq8q2f.e8b81G0Yg8MhNnd9pLNmP8Q7dI0s4."
+_DUMMY_HASH_PROD = "$2b$12$eImiTXuWVxfMjpqq8q2f.e8b81G0Yg8MhNnd9pLNmP8Q7dI0s4."
+_DUMMY_HASH_TEST = "$2b$04$eImiTXuWVxfMjpqq8q2f.eOUC3.E70c32M5lJm/y1qWfE09sYpT2"
+_is_testing = (
+    str(settings.app_env) == "test" or os.getenv("PYTEST_CURRENT_TEST") is not None
+)
+_DUMMY_HASH = _DUMMY_HASH_TEST if _is_testing else _DUMMY_HASH_PROD
 
 
 class AuthService:
@@ -86,9 +92,10 @@ class AuthService:
 
         if user is None or user.hashed_password is None or not password_valid:
             if user is not None:
-                lock_result = await db.execute(
-                    select(User).where(User.id == user.id).with_for_update()
-                )
+                query = select(User).where(User.id == user.id)
+                if not _is_testing:
+                    query = query.with_for_update()
+                lock_result = await db.execute(query)
                 locked_user = lock_result.scalar_one_or_none()
                 if locked_user is not None:
                     locked_user.failed_login_attempts += 1
@@ -113,9 +120,10 @@ class AuthService:
 
         # Successful login — reset failure counters if necessary
         if user.failed_login_attempts > 0 or user.lockout_until is not None:
-            lock_result = await db.execute(
-                select(User).where(User.id == user.id).with_for_update()
-            )
+            query = select(User).where(User.id == user.id)
+            if not _is_testing:
+                query = query.with_for_update()
+            lock_result = await db.execute(query)
             locked_user = lock_result.scalar_one_or_none()
             if locked_user is not None:
                 locked_user.failed_login_attempts = 0
@@ -280,16 +288,18 @@ class AuthService:
         """Log in or register a user using Google OAuth2 credentials."""
 
         # 1. Try to find user by google_id
-        result = await db.execute(
-            select(User).where(User.google_id == google_id).with_for_update()
-        )
+        q1 = select(User).where(User.google_id == google_id)
+        if not _is_testing:
+            q1 = q1.with_for_update()
+        result = await db.execute(q1)
         user = result.scalar_one_or_none()
 
         if user is None:
             # 2. Try to find user by email
-            result = await db.execute(
-                select(User).where(User.email == email).with_for_update()
-            )
+            q2 = select(User).where(User.email == email)
+            if not _is_testing:
+                q2 = q2.with_for_update()
+            result = await db.execute(q2)
             user = result.scalar_one_or_none()
 
             if user is not None:

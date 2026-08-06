@@ -1,7 +1,7 @@
 import logging
 import uuid
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, Any
 
 import httpx
 import jwt
@@ -859,3 +859,41 @@ async def google_callback(
         path="/auth",
     )
     return redirect_response
+
+
+@router.post(
+    "/subscribe",
+    response_model=UserResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def subscribe_to_pro(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> User:
+    """Upgrade current authenticated user to PRO subscription tier."""
+    current_user.subscription_tier = "PRO"
+    await db.commit()
+    await db.refresh(current_user)
+    return current_user
+
+
+@router.get(
+    "/subscription-status",
+    status_code=status.HTTP_200_OK,
+)
+async def get_subscription_status(
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> dict[str, Any]:
+    """Return subscription tier and remaining free trade usage metrics."""
+    max_free = 6
+    is_free = current_user.subscription_tier == "FREE"
+    remaining = max(0, max_free - current_user.trades_count) if is_free else 999999
+    return {
+        "user_id": str(current_user.id),
+        "username": current_user.username,
+        "subscription_tier": current_user.subscription_tier,
+        "trades_count": current_user.trades_count,
+        "max_free_trades": max_free,
+        "remaining_free_trades": remaining,
+        "is_pro": current_user.subscription_tier == "PRO",
+    }

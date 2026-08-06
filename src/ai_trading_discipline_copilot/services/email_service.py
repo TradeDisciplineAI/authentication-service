@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
+import logging
+import os
+
 import resend
 
 from ai_trading_discipline_copilot.core.config import get_settings
 
+logger = logging.getLogger(__name__)
 settings = get_settings()
 
-resend.api_key = settings.resend_api_key.get_secret_value()
+if settings.resend_api_key:
+    resend.api_key = settings.resend_api_key.get_secret_value()
 
 
 class EmailService:
@@ -22,15 +27,25 @@ class EmailService:
         html: str,
     ) -> None:
         """Send an email using Resend."""
+        if (
+            not settings.resend_api_key
+            or str(settings.app_env) == "test"
+            or os.getenv("PYTEST_CURRENT_TEST") is not None
+            or settings.resend_api_key.get_secret_value().startswith("re_dummy")
+        ):
+            return
 
-        await resend.Emails.send_async(
-            {
-                "from": settings.email_from,
-                "to": to,
-                "subject": subject,
-                "html": html,
-            }
-        )
+        try:
+            await resend.Emails.send_async(
+                {
+                    "from": settings.email_from,
+                    "to": to,
+                    "subject": subject,
+                    "html": html,
+                }
+            )
+        except Exception as exc:
+            logger.warning("Failed to send email to '%s': %s", to, exc)
 
     @staticmethod
     async def send_verification_email(

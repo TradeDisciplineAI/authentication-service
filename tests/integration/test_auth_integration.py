@@ -95,13 +95,9 @@ async def test_login_lockout_duration_expired_resets_attempts(
 
     # Assert
     assert response.status_code == 200
-    db_session.expire_all()
-    result = await db_session.execute(
-        select(User).where(User.username == "expiredlock")
-    )
-    updated_user = result.scalar_one()
-    assert updated_user.failed_login_attempts == 0
-    assert updated_user.lockout_until is None
+    await db_session.refresh(user)
+    assert user.failed_login_attempts == 0
+    assert user.lockout_until is None
 
 
 @pytest.mark.anyio

@@ -73,8 +73,8 @@ async def test_account_lockout_after_max_failed_logins(
         future_time = datetime.now(UTC) + timedelta(
             minutes=settings.lockout_duration_minutes + 1
         )
+        mock_dt.now.side_effect = lambda tz=None: future_time
         mock_dt.now.return_value = future_time
-        # Mock UTC constant too if referenced
         mock_dt.UTC = UTC
 
         # Login should now succeed because lockout expired
