@@ -16,6 +16,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: development
     container_name: trading_app
     ports:
       - "8000:8000"

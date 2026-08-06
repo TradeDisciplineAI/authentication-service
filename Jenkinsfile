@@ -6,7 +6,7 @@ pipeline {
         ansiColor('xterm')
         disableConcurrentBuilds()
         buildDiscarder(logRotator(numToKeepStr: '10', artifactNumToKeepStr: '10'))
-        timeout(time: 15, unit: 'MINUTES')
+        timeout(time: 30, unit: 'MINUTES')
         skipDefaultCheckout(true)
     }
 
@@ -127,7 +127,7 @@ pipeline {
                     echo 'Running linter, import sorter, and security checks...'
                     echo 'Executing: ruff check (generating checkstyle output)'
                 }
-                sh "docker compose run --rm ${env.APP_SERVICE} uv run ruff check --format=checkstyle --output-file=${env.REPORTS_DIR}/ruff-checkstyle.xml src tests"
+                sh "docker compose run --rm -v ${env.WORKSPACE}/${env.REPORTS_DIR}:/app/${env.REPORTS_DIR} ${env.APP_SERVICE} uv run ruff check --output-format=checkstyle --output-file=${env.REPORTS_DIR}/ruff-checkstyle.xml src tests"
                 script {
                     echo 'Ruff linting checks completed successfully.'
                 }
@@ -141,7 +141,7 @@ pipeline {
                     echo 'Executing strict type check checks...'
                     echo 'Executing: mypy src (generating mypy-log.txt)'
                 }
-                sh "docker compose run --rm ${env.APP_SERVICE} bash -c 'set -o pipefail && uv run mypy src | tee ${env.REPORTS_DIR}/mypy-log.txt'"
+                sh "docker compose run --rm -v ${env.WORKSPACE}/${env.REPORTS_DIR}:/app/${env.REPORTS_DIR} ${env.APP_SERVICE} bash -c 'set -o pipefail && uv run mypy src | tee ${env.REPORTS_DIR}/mypy-log.txt'"
                 script {
                     echo 'MyPy type checking checks completed successfully.'
                 }
@@ -162,7 +162,7 @@ pipeline {
                     echo "Report Location: ${env.REPORTS_DIR}/semgrep.sarif"
                 }
                 // Run Semgrep in non-blocking rollout mode (exit code is ignored via || true)
-                sh "docker compose run --rm ${env.APP_SERVICE} uv run semgrep --config=auto --sarif --output=${env.REPORTS_DIR}/semgrep.sarif || true"
+                sh "docker compose run --rm -v ${env.WORKSPACE}/${env.REPORTS_DIR}:/app/${env.REPORTS_DIR} ${env.APP_SERVICE} uv run semgrep --config=auto --sarif --output=${env.REPORTS_DIR}/semgrep.sarif || true"
                 script {
                     echo 'Semgrep security scan completed.'
                 }
@@ -174,9 +174,9 @@ pipeline {
                 script {
                     echo '=== STAGE: Ensure Test Infrastructure ==='
                     echo 'Starting PostgreSQL and Redis containers if stopped...'
-                    echo 'Executing: docker compose -f ../infrastructure/docker-compose.yml up -d test_db redis'
+                    echo 'Executing: docker compose -f ../infrastructure/docker-compose.yml -p trading_infra up -d test_db redis'
                 }
-                sh 'docker compose -f ../infrastructure/docker-compose.yml up -d test_db redis'
+                sh 'docker compose -f ../infrastructure/docker-compose.yml -p trading_infra up -d test_db redis'
                 script {
                     echo 'Infrastructure start checks completed.'
                 }
@@ -196,7 +196,7 @@ pipeline {
                     for (int i = 1; i <= attempts; i++) {
                         echo "Attempt ${i} of ${attempts}: Checking database connection via pg_isready..."
                         int status = sh(
-                            script: "docker compose -f ../infrastructure/docker-compose.yml exec -T test_db pg_isready -U postgres",
+                            script: "docker compose -f ../infrastructure/docker-compose.yml -p trading_infra exec -T test_db pg_isready -U postgres",
                             returnStatus: true
                         )
                         if (status == 0) {
@@ -235,7 +235,7 @@ pipeline {
                     echo '=== STAGE: Execute Pytest Suite ==='
                     echo 'Running pytest test cases and generating coverage...'
                 }
-                sh "docker compose run --rm -e TEST_DATABASE_URL=${env.TEST_DATABASE_URL} -e DATABASE_URL=${env.TEST_DATABASE_URL} ${env.APP_SERVICE} uv run pytest --junitxml=reports/junit.xml --cov-report=xml:reports/coverage.xml --cov-report=html:reports/htmlcov"
+                sh "docker compose run --rm -v ${env.WORKSPACE}/${env.REPORTS_DIR}:/app/${env.REPORTS_DIR} -e TEST_DATABASE_URL=${env.TEST_DATABASE_URL} -e DATABASE_URL=${env.TEST_DATABASE_URL} ${env.APP_SERVICE} uv run pytest --junitxml=${env.REPORTS_DIR}/junit.xml --cov-report=xml:${env.REPORTS_DIR}/coverage.xml --cov-report=html:${env.REPORTS_DIR}/htmlcov"
                 script {
                     echo 'Pytest suite executed successfully.'
                 }
@@ -279,11 +279,16 @@ pipeline {
                 sh """
                     for tool in pytest ruff mypy locust semgrep pre-commit; do
                         echo "Verifying absence of dev tool: \$tool"
-                        if docker run --rm --entrypoint="" ${env.PROD_IMAGE_TAG} sh -c "command -v \$tool" >/dev/null 2>&1; then
+                        docker run --rm --entrypoint="" ${env.PROD_IMAGE_TAG} sh -c "command -v \$tool" >/dev/null 2>&1
+                        exit_code=\$?
+                        if [ \$exit_code -eq 0 ]; then
                             echo "FAIL: Production image security violation: developer tool '\$tool' was found!"
                             exit 1
-                        else
+                        elif [ \$exit_code -eq 1 ] || [ \$exit_code -eq 127 ]; then
                             echo "Pass: '\$tool' is not installed."
+                        else
+                            echo "FAIL: Infrastructure or execution failure during check (exit code: \$exit_code)"
+                            exit \$exit_code
                         fi
                     done
                     echo "Developer tooling absence validation succeeded."
@@ -317,6 +322,13 @@ pipeline {
                     sh "docker rmi -f ${env.PROD_IMAGE_TAG} || true"
                 }
 
+                // Tear down compose projects to delete containers, networks, and volumes
+                echo "Tearing down application compose project: ${env.COMPOSE_PROJECT_NAME}..."
+                sh "docker compose -p ${env.COMPOSE_PROJECT_NAME} down -v || true"
+
+                echo 'Tearing down infrastructure compose project...'
+                sh 'docker compose -f ../infrastructure/docker-compose.yml -p trading_infra down -v || true'
+
                 echo 'Publishing static analysis warnings reports...'
 
                 if (fileExists("${env.REPORTS_DIR}/ruff-checkstyle.xml")) {
@@ -324,34 +336,51 @@ pipeline {
                         enabledForFailure: true,
                         tools: [checkStyle(pattern: "${env.REPORTS_DIR}/ruff-checkstyle.xml", id: 'ruff', name: 'Ruff Lint')]
                     )
+                } else {
+                    echo "WARNING: Ruff checkstyle report is missing!"
+                    currentBuild.result = 'UNSTABLE'
                 }
+
                 if (fileExists("${env.REPORTS_DIR}/mypy-log.txt")) {
                     recordIssues(
                         enabledForFailure: true,
                         tools: [mypy(pattern: "${env.REPORTS_DIR}/mypy-log.txt", id: 'mypy', name: 'MyPy Type Check')]
                     )
+                } else {
+                    echo "WARNING: MyPy log report is missing!"
+                    currentBuild.result = 'UNSTABLE'
                 }
+
                 if (fileExists("${env.REPORTS_DIR}/semgrep.sarif")) {
                     recordIssues(
                         enabledForFailure: true,
                         tools: [sarif(pattern: "${env.REPORTS_DIR}/semgrep.sarif", id: 'semgrep', name: 'Semgrep Security Scan')]
                     )
+                } else {
+                    echo "WARNING: Semgrep SARIF report is missing!"
+                    currentBuild.result = 'UNSTABLE'
                 }
 
                 // Ingest unit tests
                 if (fileExists("${env.REPORTS_DIR}/junit.xml")) {
                     echo 'Publishing JUnit test results...'
                     junit testResults: "${env.REPORTS_DIR}/junit.xml", allowEmptyResults: true
+                } else {
+                    echo "WARNING: JUnit report is missing!"
+                    currentBuild.result = 'UNSTABLE'
                 }
 
-                // Ingest Cobertura XML Coverage
+                // Ingest Cobertura XML Coverage using the new Coverage plugin
                 if (fileExists("${env.REPORTS_DIR}/coverage.xml")) {
                     echo 'Publishing Cobertura coverage reports...'
                     try {
-                        cobertura coberturaReportFile: "${env.REPORTS_DIR}/coverage.xml"
+                        recordCoverage(tools: [[parser: 'COBERTURA', pattern: "${env.REPORTS_DIR}/coverage.xml"]])
                     } catch (Exception e) {
-                        echo "WARNING: Cobertura plugin failed or is not available: ${e.message}"
+                        echo "WARNING: Coverage plugin failed or is not available: ${e.message}"
                     }
+                } else {
+                    echo "WARNING: Coverage XML report is missing!"
+                    currentBuild.result = 'UNSTABLE'
                 }
 
                 // Ingest HTML Coverage
@@ -369,6 +398,9 @@ pipeline {
                     } catch (Exception e) {
                         echo "WARNING: HTML Publisher plugin failed or is not available: ${e.message}"
                     }
+                } else {
+                    echo "WARNING: HTML Coverage report is missing!"
+                    currentBuild.result = 'UNSTABLE'
                 }
 
                 echo "Build Summary: Job: ${env.JOB_NAME} | Build: #${env.BUILD_NUMBER} | Status: ${currentBuild.currentResult}"

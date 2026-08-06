@@ -805,7 +805,19 @@ async def google_callback(
                     "Failed to exchange authorization code with Google"
                 )
 
-            tokens = token_response.json()
+            from json import JSONDecodeError
+
+            try:
+                tokens = token_response.json()
+                if not isinstance(tokens, dict):
+                    raise UnauthorizedException(
+                        "Failed to exchange authorization code with Google"
+                    )
+            except JSONDecodeError as err:
+                raise UnauthorizedException(
+                    "Failed to exchange authorization code with Google"
+                ) from err
+
             access_token = tokens.get("access_token")
             if not access_token:
                 raise UnauthorizedException(
@@ -824,7 +836,16 @@ async def google_callback(
                 )
                 raise UnauthorizedException("Failed to fetch user profile from Google")
 
-            user_info = userinfo_response.json()
+            try:
+                user_info = userinfo_response.json()
+                if not isinstance(user_info, dict):
+                    raise UnauthorizedException(
+                        "Failed to fetch user profile from Google"
+                    )
+            except JSONDecodeError as err:
+                raise UnauthorizedException(
+                    "Failed to fetch user profile from Google"
+                ) from err
     except httpx.HTTPError as err:
         logger.error("Google API communication failed: %s", str(err))
         raise UnauthorizedException(

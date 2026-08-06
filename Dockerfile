@@ -27,6 +27,37 @@ RUN uv sync \
 
 
 # =============================================================================
+# Development/Test Stage
+# =============================================================================
+FROM python:3.13-slim-bookworm AS development
+
+RUN pip install --no-cache-dir uv
+
+WORKDIR /app
+
+ENV UV_LINK_MODE=copy
+ENV UV_COMPILE_BYTECODE=1
+
+COPY pyproject.toml uv.lock* ./
+
+# Install all dependencies including dev group
+RUN uv sync \
+    --python /usr/local/bin/python3 \
+    --no-install-project
+
+COPY . .
+
+# Install the project including dev group
+RUN uv sync \
+    --python /usr/local/bin/python3
+
+ENV PATH="/app/.venv/bin:$PATH"
+ENV PYTHONPATH="/app/src"
+ENV PYTHONUNBUFFERED=1
+
+
+
+# =============================================================================
 # Runtime Stage
 # =============================================================================
 FROM python:3.13-slim-bookworm
