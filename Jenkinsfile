@@ -216,7 +216,16 @@ pipeline {
                         }
 
                         echo "Executing: docker compose -f infrastructure/docker-compose.yml -p trading_infra up -d${startServices}"
-                        sh "docker compose -f infrastructure/docker-compose.yml -p trading_infra up -d${startServices}"
+                        int buildStatus = sh(
+                            script: "docker compose -f infrastructure/docker-compose.yml -p trading_infra up -d${startServices}",
+                            returnStatus: true
+                        )
+                        if (buildStatus != 0) {
+                            echo "FAIL: Failed to start infrastructure containers."
+                            sh "docker compose -f infrastructure/docker-compose.yml -p trading_infra ps"
+                            sh "docker compose -f infrastructure/docker-compose.yml -p trading_infra logs"
+                            error "Infrastructure startup failed."
+                        }
                     }
                     echo 'Infrastructure start checks completed.'
                 }
@@ -236,7 +245,7 @@ pipeline {
                     for (int i = 1; i <= attempts; i++) {
                         echo "Attempt ${i} of ${attempts}: Checking database connection via pg_isready..."
                         int status = sh(
-                            script: "docker compose -f infrastructure/docker-compose.yml -p trading_infra exec -T test_db pg_isready -U postgres",
+                            script: "docker exec shared_test_db pg_isready -U postgres",
                             returnStatus: true
                         )
                         if (status == 0) {
@@ -249,6 +258,8 @@ pipeline {
                     }
 
                     if (!dbReady) {
+                        echo "FAIL: Database did not become healthy. Printing logs..."
+                        sh "docker logs shared_test_db"
                         error "FAIL: Database did not become healthy within 60 seconds."
                     }
                 }
