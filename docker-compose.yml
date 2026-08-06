@@ -16,6 +16,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: development
     container_name: trading_app
     ports:
       - "8000:8000"
@@ -31,6 +32,7 @@ services:
       - ALGORITHM=HS256
       - ACCESS_TOKEN_EXPIRE_MINUTES=30
       - ENABLE_LOGIN_RATE_LIMITING=${ENABLE_LOGIN_RATE_LIMITING:-false}
+      - COOKIE_SECURE=${COOKIE_SECURE:-false}
 
       - DATABASE_URL=${DATABASE_URL}
       - REDIS_URL=redis://shared_redis:6379/0
@@ -52,9 +54,13 @@ services:
     networks:
       - trading_network
 
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+
     restart: always
 
-  celery_worker:
+  auth_celery:
     build:
       context: .
       dockerfile: Dockerfile
@@ -74,9 +80,13 @@ services:
     networks:
       - trading_network
 
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+
     restart: always
 
-  celery_beat:
+  auth_celery_beat:
     build:
       context: .
       dockerfile: Dockerfile
