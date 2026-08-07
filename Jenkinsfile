@@ -442,7 +442,7 @@ pipeline {
                 if (fileExists("${env.REPORTS_DIR}/mypy-log.txt")) {
                     recordIssues(
                         enabledForFailure: true,
-                        tools: [mypy(pattern: "${env.REPORTS_DIR}/mypy-log.txt", id: 'mypy', name: 'MyPy Type Check')]
+                        tools: [myPy(pattern: "${env.REPORTS_DIR}/mypy-log.txt", id: 'mypy', name: 'MyPy Type Check')]
                     )
                 } else {
                     echo "WARNING: MyPy log report is missing!"
