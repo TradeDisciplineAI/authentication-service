@@ -36,8 +36,7 @@ _DUMMY_HASH_TEST = "$2b$04$eImiTXuWVxfMjpqq8q2f.eOUC3.E70c32M5lJm/y1qWfE09sYpT2"
 def _is_test_mode() -> bool:
     """Evaluate test mode dynamically at operation time."""
     return (
-        str(settings.app_env) == "test"
-        or os.getenv("PYTEST_CURRENT_TEST") is not None
+        str(settings.app_env) == "test" or os.getenv("PYTEST_CURRENT_TEST") is not None
     )
 
 
