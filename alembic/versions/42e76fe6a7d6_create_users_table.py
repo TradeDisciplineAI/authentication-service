@@ -44,4 +44,5 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_users_username'), table_name='users')
     op.drop_index(op.f('ix_users_email'), table_name='users')
     op.drop_table('users')
+    op.execute("DROP TYPE IF EXISTS user_role")
     # ### end Alembic commands ###

@@ -1,0 +1,18 @@
+# =============================================================================
+# Authentication Service — Local Development Overrides
+# =============================================================================
+services:
+  auth_app:
+    volumes:
+      - .:/app
+      - /app/.venv
+
+  auth_celery:
+    volumes:
+      - .:/app
+      - /app/.venv
+
+  auth_celery_beat:
+    volumes:
+      - .:/app
+      - /app/.venv
