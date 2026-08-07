@@ -142,9 +142,12 @@ pipeline {
                     echo '=== STAGE: Ruff Lint ==='
                     echo 'Running linter, import sorter, and security checks...'
                     echo 'Executing: ruff check (generating ruff-log.txt)'
-                }
-                sh "docker compose run --rm -v ${env.WORKSPACE}/${env.REPORTS_DIR}:/app/${env.REPORTS_DIR} ${env.APP_SERVICE} uv run ruff check --output-file=${env.REPORTS_DIR}/ruff-log.txt src tests"
-                script {
+                    try {
+                        sh "docker compose run --name auth_ruff_${env.BUILD_NUMBER} ${env.APP_SERVICE} uv run ruff check --output-file=${env.REPORTS_DIR}/ruff-log.txt src tests"
+                    } finally {
+                        sh "docker cp auth_ruff_${env.BUILD_NUMBER}:/app/${env.REPORTS_DIR}/ruff-log.txt ${env.WORKSPACE}/${env.REPORTS_DIR}/ruff-log.txt || true"
+                        sh "docker rm -f auth_ruff_${env.BUILD_NUMBER} || true"
+                    }
                     echo 'Ruff linting checks completed successfully.'
                 }
             }
@@ -156,9 +159,12 @@ pipeline {
                     echo '=== STAGE: MyPy Type Check ==='
                     echo 'Executing strict type check checks...'
                     echo 'Executing: mypy src (generating mypy-log.txt)'
-                }
-                sh "docker compose run --rm -v ${env.WORKSPACE}/${env.REPORTS_DIR}:/app/${env.REPORTS_DIR} ${env.APP_SERVICE} bash -c 'set -o pipefail && uv run mypy src | tee ${env.REPORTS_DIR}/mypy-log.txt'"
-                script {
+                    try {
+                        sh "docker compose run --name auth_mypy_${env.BUILD_NUMBER} ${env.APP_SERVICE} bash -c 'set -o pipefail && uv run mypy src | tee ${env.REPORTS_DIR}/mypy-log.txt'"
+                    } finally {
+                        sh "docker cp auth_mypy_${env.BUILD_NUMBER}:/app/${env.REPORTS_DIR}/mypy-log.txt ${env.WORKSPACE}/${env.REPORTS_DIR}/mypy-log.txt || true"
+                        sh "docker rm -f auth_mypy_${env.BUILD_NUMBER} || true"
+                    }
                     echo 'MyPy type checking checks completed successfully.'
                 }
             }
@@ -177,9 +183,12 @@ pipeline {
                     echo 'Output Format: SARIF'
                     echo "Report Location: ${env.REPORTS_DIR}/semgrep.sarif"
                 }
-                // Run Semgrep in non-blocking rollout mode (exit code is ignored via || true)
-                sh "docker compose run --rm -v ${env.WORKSPACE}/${env.REPORTS_DIR}:/app/${env.REPORTS_DIR} ${env.APP_SERVICE} uv run semgrep --config=auto --sarif --output=${env.REPORTS_DIR}/semgrep.sarif || true"
-                script {
+                    try {
+                        sh "docker compose run --name auth_semgrep_${env.BUILD_NUMBER} ${env.APP_SERVICE} uv run semgrep --config=auto --sarif --output=${env.REPORTS_DIR}/semgrep.sarif || true"
+                    } finally {
+                        sh "docker cp auth_semgrep_${env.BUILD_NUMBER}:/app/${env.REPORTS_DIR}/semgrep.sarif ${env.WORKSPACE}/${env.REPORTS_DIR}/semgrep.sarif || true"
+                        sh "docker rm -f auth_semgrep_${env.BUILD_NUMBER} || true"
+                    }
                     echo 'Semgrep security scan completed.'
                 }
             }
@@ -314,9 +323,12 @@ pipeline {
                 script {
                     echo '=== STAGE: Execute Pytest Suite ==='
                     echo 'Running pytest test cases and generating coverage...'
-                }
-                sh "docker compose run --rm -v ${env.WORKSPACE}/${env.REPORTS_DIR}:/app/${env.REPORTS_DIR} -e TEST_DATABASE_URL=${env.TEST_DATABASE_URL} -e DATABASE_URL=${env.TEST_DATABASE_URL} ${env.APP_SERVICE} uv run pytest --junitxml=${env.REPORTS_DIR}/junit.xml --cov-report=xml:${env.REPORTS_DIR}/coverage.xml --cov-report=html:${env.REPORTS_DIR}/htmlcov"
-                script {
+                    try {
+                        sh "docker compose run --name auth_pytest_${env.BUILD_NUMBER} -e TEST_DATABASE_URL=${env.TEST_DATABASE_URL} -e DATABASE_URL=${env.TEST_DATABASE_URL} ${env.APP_SERVICE} uv run pytest --junitxml=${env.REPORTS_DIR}/junit.xml --cov-report=xml:${env.REPORTS_DIR}/coverage.xml --cov-report=html:${env.REPORTS_DIR}/htmlcov"
+                    } finally {
+                        sh "docker cp auth_pytest_${env.BUILD_NUMBER}:/app/${env.REPORTS_DIR}/. ${env.WORKSPACE}/${env.REPORTS_DIR}/ || true"
+                        sh "docker rm -f auth_pytest_${env.BUILD_NUMBER} || true"
+                    }
                     echo 'Pytest suite executed successfully.'
                 }
             }
@@ -386,6 +398,15 @@ pipeline {
                 """
                 script {
                     echo 'Production image validation completed successfully.'
+                }
+            }
+        }
+        stage('Validate Reports Presence') {
+            steps {
+                script {
+                    echo '=== STAGE: Validate Reports Presence ==='
+                    sh "find ${env.REPORTS_DIR} -type f || true"
+                    sh "ls -R ${env.REPORTS_DIR} || true"
                 }
             }
         }
