@@ -468,18 +468,6 @@ pipeline {
                     currentBuild.result = 'UNSTABLE'
                 }
 
-                // Ingest Cobertura XML Coverage using the new Coverage plugin
-                if (fileExists("${env.REPORTS_DIR}/coverage.xml")) {
-                    echo 'Publishing Cobertura coverage reports...'
-                    try {
-                        recordCoverage(tools: [[parser: 'COBERTURA', pattern: "${env.REPORTS_DIR}/coverage.xml"]])
-                    } catch (Exception e) {
-                        echo "WARNING: Coverage plugin failed or is not available: ${e.message}"
-                    }
-                } else {
-                    echo "WARNING: Coverage XML report is missing!"
-                    currentBuild.result = 'UNSTABLE'
-                }
 
                 // Ingest HTML Coverage
                 if (fileExists("${env.REPORTS_DIR}/htmlcov/index.html")) {
