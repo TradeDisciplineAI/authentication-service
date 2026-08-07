@@ -25,6 +25,9 @@ class UserResponse(BaseModel):
     role: UserRole
     is_active: bool
     is_verified: bool
+    trades_count: int = 0
+    subscription_tier: str = "FREE"
+    max_free_trades: int = 6
     created_at: datetime
     updated_at: datetime
 

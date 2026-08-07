@@ -100,6 +100,18 @@ class User(Base):
         nullable=False,
     )
 
+    trades_count: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        nullable=False,
+    )
+
+    subscription_tier: Mapped[str] = mapped_column(
+        String(20),
+        default="FREE",
+        nullable=False,
+    )
+
     lockout_until: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
