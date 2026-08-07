@@ -181,3 +181,5 @@ MIT
 # ai-trading-discipline-copilot
 
 # Testing-integration
+
+# CI Test
