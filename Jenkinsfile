@@ -175,14 +175,11 @@ pipeline {
                 script {
                     echo '=== STAGE: Semgrep Security Scan ==='
                     echo 'Starting security scan...'
-                }
-                echo 'Checking Semgrep version...'
-                sh "docker compose run --rm ${env.APP_SERVICE} uv run semgrep --version"
-                script {
+                    echo 'Checking Semgrep version...'
+                    sh "docker compose run --rm ${env.APP_SERVICE} uv run semgrep --version"
                     echo 'Configuration: --config=auto'
                     echo 'Output Format: SARIF'
                     echo "Report Location: ${env.REPORTS_DIR}/semgrep.sarif"
-                }
                     try {
                         sh "docker compose run --name auth_semgrep_${env.BUILD_NUMBER} ${env.APP_SERVICE} uv run semgrep --config=auto --sarif --output=${env.REPORTS_DIR}/semgrep.sarif || true"
                     } finally {
