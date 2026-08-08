@@ -31,7 +31,7 @@ pipeline {
                     echo '=== STAGE: Checkout ==='
                     echo 'Checking out code from version control...'
                 }
-                checkout scm
+                git branch: env.BRANCH_NAME, url: 'https://github.com/TradeDisciplineAI/authentication-service.git'
                 script {
                     echo 'Checking out shared infrastructure repository...'
                     checkout([
