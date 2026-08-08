@@ -323,7 +323,10 @@ pipeline {
                     try {
                         sh "docker compose -f docker-compose.yml run --name auth_pytest_${env.BUILD_NUMBER} -e TEST_DATABASE_URL=${env.TEST_DATABASE_URL} -e DATABASE_URL=${env.TEST_DATABASE_URL} ${env.APP_SERVICE} uv run pytest --junitxml=${env.REPORTS_DIR}/junit.xml --cov-report=xml:${env.REPORTS_DIR}/coverage.xml --cov-report=html:${env.REPORTS_DIR}/htmlcov"
                     } finally {
-                        sh "docker cp auth_pytest_${env.BUILD_NUMBER}:/app/${env.REPORTS_DIR}/. ${env.WORKSPACE}/${env.REPORTS_DIR}/ || true"
+                        sh """
+                            mkdir -p "${env.WORKSPACE}/${env.REPORTS_DIR}"
+                            docker cp "auth_pytest_${env.BUILD_NUMBER}:/app/${env.REPORTS_DIR}/." "${env.WORKSPACE}/${env.REPORTS_DIR}/"
+                        """
                         sh "docker rm -f auth_pytest_${env.BUILD_NUMBER} || true"
                     }
                     echo 'Pytest suite executed successfully.'
