@@ -17,6 +17,10 @@ engine = create_async_engine(
     # Validates connections before use — prevents stale connection errors
     # after idle periods or database restarts.
     pool_pre_ping=True,
+    # Disable prepared statement caching for PgBouncer / Supabase transaction pooling
+    connect_args={
+        "statement_cache_size": 0,
+    },
 )
 
 # expire_on_commit=False keeps ORM objects usable after commit without
