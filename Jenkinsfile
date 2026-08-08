@@ -145,7 +145,10 @@ pipeline {
                     try {
                         sh "docker compose -f docker-compose.yml run --name auth_ruff_${env.BUILD_NUMBER} ${env.APP_SERVICE} uv run ruff check --output-format=pylint --output-file=${env.REPORTS_DIR}/ruff-log.txt src tests"
                     } finally {
-                        sh "docker cp auth_ruff_${env.BUILD_NUMBER}:/app/${env.REPORTS_DIR}/ruff-log.txt ${env.WORKSPACE}/${env.REPORTS_DIR}/ruff-log.txt || true"
+                        sh """
+                            mkdir -p "${env.WORKSPACE}/${env.REPORTS_DIR}"
+                            docker cp "auth_ruff_${env.BUILD_NUMBER}:/app/${env.REPORTS_DIR}/ruff-log.txt" "${env.WORKSPACE}/${env.REPORTS_DIR}/ruff-log.txt"
+                        """
                         sh "docker rm -f auth_ruff_${env.BUILD_NUMBER} || true"
                     }
                     echo 'Ruff linting checks completed successfully.'
@@ -162,7 +165,10 @@ pipeline {
                     try {
                         sh "docker compose -f docker-compose.yml run --name auth_mypy_${env.BUILD_NUMBER} ${env.APP_SERVICE} bash -c 'set -o pipefail && uv run mypy src | tee ${env.REPORTS_DIR}/mypy-log.txt'"
                     } finally {
-                        sh "docker cp auth_mypy_${env.BUILD_NUMBER}:/app/${env.REPORTS_DIR}/mypy-log.txt ${env.WORKSPACE}/${env.REPORTS_DIR}/mypy-log.txt || true"
+                        sh """
+                            mkdir -p "${env.WORKSPACE}/${env.REPORTS_DIR}"
+                            docker cp "auth_mypy_${env.BUILD_NUMBER}:/app/${env.REPORTS_DIR}/mypy-log.txt" "${env.WORKSPACE}/${env.REPORTS_DIR}/mypy-log.txt"
+                        """
                         sh "docker rm -f auth_mypy_${env.BUILD_NUMBER} || true"
                     }
                     echo 'MyPy type checking checks completed successfully.'
@@ -183,7 +189,10 @@ pipeline {
                     try {
                         sh "docker compose -f docker-compose.yml run --name auth_semgrep_${env.BUILD_NUMBER} ${env.APP_SERVICE} uv run semgrep --config=auto --sarif --output=${env.REPORTS_DIR}/semgrep.sarif || true"
                     } finally {
-                        sh "docker cp auth_semgrep_${env.BUILD_NUMBER}:/app/${env.REPORTS_DIR}/semgrep.sarif ${env.WORKSPACE}/${env.REPORTS_DIR}/semgrep.sarif || true"
+                        sh """
+                            mkdir -p "${env.WORKSPACE}/${env.REPORTS_DIR}"
+                            docker cp "auth_semgrep_${env.BUILD_NUMBER}:/app/${env.REPORTS_DIR}/semgrep.sarif" "${env.WORKSPACE}/${env.REPORTS_DIR}/semgrep.sarif"
+                        """
                         sh "docker rm -f auth_semgrep_${env.BUILD_NUMBER} || true"
                     }
                     echo 'Semgrep security scan completed.'
