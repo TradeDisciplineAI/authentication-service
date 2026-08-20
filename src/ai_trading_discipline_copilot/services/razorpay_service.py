@@ -40,7 +40,7 @@ class RazorpayService:
                 SubscriptionPlan(
                     id=uuid.uuid4(),
                     name="FREE",
-                    description="Free tier with 5 portfolio limit, basic stock scanning and yFinance data",
+                    description="Free plan with 5 portfolio limit and full access to all AI Agents (Agents 1-6)",
                     amount=0,
                     currency="INR",
                     billing_interval="monthly",
@@ -49,7 +49,7 @@ class RazorpayService:
                 SubscriptionPlan(
                     id=uuid.uuid4(),
                     name="PRO",
-                    description="Pro Plan with 15 portfolio limit, advanced multi-strategy AI, risk engine, and RAG memory",
+                    description="Pro plan with 15 portfolio limit and full access to all AI Agents (Agents 1-6)",
                     amount=199900,  # ₹1,999.00 in paise
                     currency="INR",
                     billing_interval="monthly",
@@ -58,6 +58,7 @@ class RazorpayService:
             ]
             db.add_all(default_plans)
             await db.commit()
+
 
             result = await db.execute(select(SubscriptionPlan))
             plans = list(result.scalars().all())
