@@ -1,4 +1,9 @@
-"""Application entry point."""
+# ------------------ Authentication Service Entry Point Feature -----------------------
+"""
+Application entry point for the Authentication Microservice.
+Initializes FastAPI, configures CORS and Trusted Host middleware, sets up rate limiters,
+attaches custom exception handlers, and mounts authentication and subscription routers.
+"""
 
 import logging
 
@@ -13,9 +18,9 @@ from .core.config import get_settings
 from .core.exceptions import AppException
 from .core.limiter import limiter
 from .routers.auth import router as auth_router
+from .routers.subscriptions import router as subscriptions_router
 
 settings = get_settings()
-
 
 # Initialize logging configuration
 logging.basicConfig(
@@ -23,17 +28,20 @@ logging.basicConfig(
     format=settings.log_format,
 )
 
+# ------------------ FastAPI App Initialization -----------------------
+"""
+FastAPI application instance configured with app settings, environment-aware documentation URLs,
+CORS security middleware, and trusted host protections.
+"""
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
     description="AI-powered trading discipline and psychology assistant.",
-    # Disable interactive docs outside of development to avoid exposing
-    # the full API schema to unauthenticated users in staging/production.
     docs_url="/docs" if settings.app_env == "development" else None,
     redoc_url="/redoc" if settings.app_env == "development" else None,
 )
 
-# Attach limiter state and exception handler
+# Attach rate limiter state and exception handler
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
 
@@ -57,30 +65,49 @@ app.add_middleware(
 )
 
 
+# ------------------ Custom Application Exception Handler -----------------------
 @app.exception_handler(AppException)
 async def app_exception_handler(request: Request, exc: AppException) -> JSONResponse:
+    """
+    Catches custom AppException instances across all routes and returns a standardized
+    JSON response with HTTP status code and error details.
+    """
     return JSONResponse(
         status_code=exc.status_code,
         content={"detail": exc.detail},
     )
 
 
+# ------------------ Root Endpoint -----------------------
 @app.get("/")
 async def root() -> dict[str, str]:
+    """
+    Root endpoint returning service status message verifying server execution.
+    """
     return {"message": "AI Trading Discipline Copilot is running."}
 
 
+# ------------------ Health Check Endpoint -----------------------
 @app.get("/health")
 async def health() -> dict[str, str]:
+    """
+    Health check endpoint returning service status, application version, and active environment mode.
+    """
     return {"status": "ok", "version": settings.app_version, "env": settings.app_env}
 
 
+# ------------------ Celery Worker Health Check Endpoint -----------------------
 @app.get("/health/celery-ping")
 async def celery_ping() -> dict[str, str]:
+    """
+    Health check endpoint for background Celery worker queue connectivity.
+    """
     from ai_trading_discipline_copilot.tasks.system_tasks import ping_auth_worker
 
     task = ping_auth_worker.delay()
     return {"status": "enqueued", "task_id": task.id, "queue": "auth_queue"}
 
 
+# ------------------ Mount API Routers -----------------------
 app.include_router(auth_router)
+app.include_router(subscriptions_router)

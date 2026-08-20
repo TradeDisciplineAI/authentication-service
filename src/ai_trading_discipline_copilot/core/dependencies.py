@@ -1,4 +1,8 @@
-"""FastAPI dependency injection — database sessions and authenticated user."""
+# ------------------ Core Dependencies Feature -----------------------
+"""
+FastAPI dependency injection utilities providing asynchronous database sessions
+and authenticating active user credentials from JWT Bearer tokens.
+"""
 
 from __future__ import annotations
 
@@ -18,12 +22,16 @@ from .security import decode_access_token
 if TYPE_CHECKING:
     from ..models.user import User
 
+# ------------------ OAuth2 Password Bearer Scheme -----------------------
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 
+# ------------------ Database Session Dependency -----------------------
 async def get_db() -> AsyncGenerator[AsyncSession]:
-    """Yield one async database session per request."""
-
+    """
+    Yields an isolated async database session per request and automatically rolls back
+    transactions on unhandled exceptions before closing.
+    """
     async with AsyncSessionFactory() as session:
         try:
             yield session
@@ -32,14 +40,16 @@ async def get_db() -> AsyncGenerator[AsyncSession]:
             raise
 
 
+# ------------------ Get Current Authenticated User Dependency -----------------------
 async def get_current_user(
     token: Annotated[str, Depends(oauth2_scheme)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> User:
-    """Return the authenticated user from a valid access token."""
-
-    # Lazy import avoids circular imports.
-    from ..models.user import User  # noqa: PLC0415
+    """
+    Decodes the JWT access token from the Authorization header, validates the user ID subject,
+    and returns the active User model instance from the database.
+    """
+    from ..models.user import User
 
     payload = decode_access_token(token)
 

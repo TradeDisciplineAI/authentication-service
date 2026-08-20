@@ -75,6 +75,11 @@ class Settings(BaseSettings):
     # Redis
     redis_url: str = "redis://localhost:6379/0"
 
+    # Razorpay Payment Gateway
+    razorpay_key_id: str = "rzp_test_mock_key_id"
+    razorpay_key_secret: SecretStr = SecretStr("mock_secret_key_123456789")
+    razorpay_webhook_secret: SecretStr = SecretStr("mock_webhook_secret_987654321")
+
     # CORS
     allowed_origins: list[str] = [
         "http://localhost:3000",

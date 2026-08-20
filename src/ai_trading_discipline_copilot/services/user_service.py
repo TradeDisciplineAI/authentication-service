@@ -1,3 +1,9 @@
+# ------------------ User Service Feature -----------------------
+"""
+Business logic service managing user account registration, unique username/email validation,
+offloaded password hashing, and user model persistence.
+"""
+
 import asyncio
 import logging
 
@@ -12,20 +18,24 @@ from ai_trading_discipline_copilot.schemas.user import UserCreate
 logger = logging.getLogger(__name__)
 
 
+# ------------------ User Service Class -----------------------
 class UserService:
-    """Business logic for user management."""
+    """
+    User Management Service handling account registration and unique username/email verification.
+    """
 
+    # ------------------ Register User Method -----------------------
     @staticmethod
     async def register_user(
         db: AsyncSession,
         user_data: UserCreate,
     ) -> User:
-        """Register a new user."""
-
-        # Compute hash before DB query to avoid holding connections
+        """
+        Registers a new user account: offloads bcrypt password hashing to worker thread,
+        verifies username and email uniqueness, creates unverified user instance, and commits to DB.
+        """
         hashed_pw = await asyncio.to_thread(hash_password, user_data.password)
 
-        # Check whether the username or email already exists.
         result = await db.execute(
             select(User).where(
                 or_(

@@ -1,4 +1,8 @@
-"""Password hashing and JWT token utilities."""
+# ------------------ Security Utilities Feature -----------------------
+"""
+Security helper functions for bcrypt password hashing, constant-time verification,
+SHA-256 token hashing, and signed JWT access & refresh token generation/decoding.
+"""
 
 from __future__ import annotations
 
@@ -15,13 +19,15 @@ from .config import get_settings
 
 settings = get_settings()
 
-# 12 rounds is the industry-standard minimum for bcrypt (≈250ms per hash).
-# Slower hashing directly resists brute-force attacks.
 _BCRYPT_ROUNDS = settings.bcrypt_rounds
 
 
+# ------------------ Hash Password Function -----------------------
 def hash_password(plain_password: str) -> str:
-    """Return a bcrypt hash of the given plain-text password."""
+    """
+    Hashes a plain-text password using bcrypt with salt rounds configured according to the application environment.
+    Exceeding 72 bytes raises a ValueError to prevent bcrypt truncation vulnerabilities.
+    """
     import os
 
     if len(plain_password.encode("utf-8")) > 72:
@@ -40,11 +46,15 @@ def hash_password(plain_password: str) -> str:
     return hashed.decode("utf-8")
 
 
+# ------------------ Verify Password Function -----------------------
 def verify_password(
     plain_password: str,
     hashed_password: str,
 ) -> bool:
-    """Return True if plain_password matches the stored bcrypt hash."""
+    """
+    Verifies a plain-text password against a bcrypt hash in constant time.
+    Returns True if the password is valid, False otherwise.
+    """
     try:
         return bcrypt.checkpw(
             plain_password.encode("utf-8"),
@@ -54,30 +64,37 @@ def verify_password(
         return False
 
 
+# ------------------ Hash Refresh Token Function -----------------------
 def hash_refresh_token(token: str) -> str:
-    """Return a SHA-256 hash of a refresh token."""
-
+    """
+    Hashes a raw refresh token string using SHA-256 for secure database storage.
+    """
     return hashlib.sha256(
         token.encode("utf-8"),
     ).hexdigest()
 
 
+# ------------------ Verify Refresh Token Function -----------------------
 def verify_refresh_token(
     refresh_token: str,
     token_hash: str,
 ) -> bool:
-    """Verify a refresh token against its stored SHA-256 hash."""
-
+    """
+    Verifies a raw refresh token against its stored SHA-256 hash.
+    """
     return hash_refresh_token(refresh_token) == token_hash
 
 
+# ------------------ Internal Token Creator Helper -----------------------
 def _create_token(
     user_id: str,
     expires_delta: timedelta,
     token_type: str,
 ) -> tuple[str, str]:
-    """Create a signed JWT and return the token with its JTI."""
-
+    """
+    Internal helper generating a signed JWT with expiration timestamp, issued timestamp,
+    unique JTI, subject user_id, and specified token type (access or refresh).
+    """
     now = datetime.now(UTC)
     jti = str(uuid.uuid4())
 
@@ -98,40 +115,46 @@ def _create_token(
     return token, jti
 
 
+# ------------------ Create Access Token Function -----------------------
 def create_access_token(
     user_id: str,
 ) -> tuple[str, str]:
-    """Create an access token."""
-
+    """
+    Creates a signed JWT access token for user authentication expiring according to settings.access_token_expire_minutes.
+    """
     return _create_token(
         user_id=user_id,
         expires_delta=timedelta(
             minutes=settings.access_token_expire_minutes,
         ),
-        token_type="access",  # noqa: S106
+        token_type="access",
     )
 
 
+# ------------------ Create Refresh Token Function -----------------------
 def create_refresh_token(
     user_id: str,
 ) -> tuple[str, str]:
-    """Create a refresh token."""
-
+    """
+    Creates a signed JWT refresh token for session continuation expiring according to settings.refresh_token_expire_days.
+    """
     return _create_token(
         user_id=user_id,
         expires_delta=timedelta(
             days=settings.refresh_token_expire_days,
         ),
-        token_type="refresh",  # noqa: S106
+        token_type="refresh",
     )
 
 
+# ------------------ Internal Token Decoder Helper -----------------------
 def _decode_token(
     token: str,
     token_type: str,
 ) -> dict[str, Any] | None:
-    """Verify and decode a JWT."""
-
+    """
+    Internal helper verifying and decoding a signed JWT token string against algorithm and secret key.
+    """
     try:
         payload: dict[str, Any] = jwt.decode(
             token,
@@ -148,23 +171,27 @@ def _decode_token(
         return None
 
 
+# ------------------ Decode Access Token Function -----------------------
 def decode_access_token(
     token: str,
 ) -> dict[str, Any] | None:
-    """Verify and decode an access token."""
-
+    """
+    Decodes and validates a JWT access token, returning its payload dictionary or None if invalid.
+    """
     return _decode_token(
         token=token,
-        token_type="access",  # noqa: S106
+        token_type="access",
     )
 
 
+# ------------------ Decode Refresh Token Function -----------------------
 def decode_refresh_token(
     token: str,
 ) -> dict[str, Any] | None:
-    """Verify and decode a refresh token."""
-
+    """
+    Decodes and validates a JWT refresh token, returning its payload dictionary or None if invalid.
+    """
     return _decode_token(
         token=token,
-        token_type="refresh",  # noqa: S106
+        token_type="refresh",
     )
