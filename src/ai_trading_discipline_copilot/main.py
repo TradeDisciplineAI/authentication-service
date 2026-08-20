@@ -13,8 +13,10 @@ from .core.config import get_settings
 from .core.exceptions import AppException
 from .core.limiter import limiter
 from .routers.auth import router as auth_router
+from .routers.subscriptions import router as subscriptions_router
 
 settings = get_settings()
+
 
 
 # Initialize logging configuration
@@ -84,3 +86,5 @@ async def celery_ping() -> dict[str, str]:
 
 
 app.include_router(auth_router)
+app.include_router(subscriptions_router)
+
