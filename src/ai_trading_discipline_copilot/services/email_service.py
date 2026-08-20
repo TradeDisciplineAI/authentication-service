@@ -1,4 +1,8 @@
-"""Email service powered by Resend."""
+# ------------------ Email Service Feature -----------------------
+"""
+Email notification service powered by Resend API for sending HTML verification emails,
+password reset links, and transactional notifications.
+"""
 
 from __future__ import annotations
 
@@ -16,9 +20,13 @@ if settings.resend_api_key:
     resend.api_key = settings.resend_api_key.get_secret_value()
 
 
+# ------------------ Email Service Class -----------------------
 class EmailService:
-    """Business logic for sending emails."""
+    """
+    Transactional Email Service delivering HTML email verification links and notifications.
+    """
 
+    # ------------------ Send Raw Email Method -----------------------
     @staticmethod
     async def send_email(
         *,
@@ -26,7 +34,9 @@ class EmailService:
         subject: str,
         html: str,
     ) -> None:
-        """Send an email using Resend."""
+        """
+        Dispatches an HTML email via Resend API. Safely skips execution during testing or when using dummy API keys.
+        """
         if (
             not settings.resend_api_key
             or str(settings.app_env) == "test"
@@ -47,13 +57,16 @@ class EmailService:
         except Exception as exc:
             logger.warning("Failed to send email to '%s': %s", to, exc)
 
+    # ------------------ Send Verification Email Method -----------------------
     @staticmethod
     async def send_verification_email(
         *,
         to: str,
         verification_url: str,
     ) -> None:
-        """Send email verification link using Resend."""
+        """
+        Constructs a responsive HTML email containing a 24-hour expiration email verification button and dispatches it via Resend API.
+        """
         import html
         from datetime import UTC, datetime
 

@@ -1,3 +1,10 @@
+# ------------------ Subscriptions Router Feature -----------------------
+"""
+FastAPI REST router for subscription and payment gateway endpoints.
+Exposes routes to retrieve subscription plans, create Razorpay orders,
+verify HMAC-SHA256 signatures, upgrade user tiers, and retrieve active subscription status.
+"""
+
 import logging
 from typing import Annotated
 
@@ -18,7 +25,6 @@ from ai_trading_discipline_copilot.services.razorpay_service import RazorpayServ
 
 logger = logging.getLogger(__name__)
 
-# ------------------ Subscriptions Router Feature -----------------------
 router = APIRouter(prefix="/subscriptions", tags=["Razorpay Subscriptions"])
 
 
@@ -31,6 +37,10 @@ router = APIRouter(prefix="/subscriptions", tags=["Razorpay Subscriptions"])
 async def get_subscription_plans(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """
+    Public endpoint retrieving available subscription plans (FREE with 5 portfolios, PRO with 15 portfolios).
+    Both plans include full access to all AI Agents (Agents 1-6).
+    """
     plans = await RazorpayService.get_or_seed_plans(db)
     return plans
 
@@ -46,6 +56,10 @@ async def create_payment_order(
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """
+    Authenticated endpoint creating a new Razorpay payment order for the specified plan ID.
+    Generates a unique order ID and receipt for frontend Razorpay checkout initialization.
+    """
     order_data = await RazorpayService.create_order(
         db=db,
         user_id=current_user.id,
@@ -65,6 +79,11 @@ async def verify_payment_signature(
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """
+    Authenticated endpoint validating Razorpay payment signature via HMAC-SHA256 constant-time check.
+    On valid verification, updates payment order status to PAID, logs audit transaction,
+    upgrades user's subscription_tier to PRO, and activates 30-day subscription period.
+    """
     result = await RazorpayService.verify_and_activate_payment(
         db=db,
         user_id=current_user.id,
@@ -85,5 +104,9 @@ async def get_my_subscription(
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """
+    Authenticated endpoint retrieving current user's active subscription tier, plan name,
+    portfolio addition limits, and subscription period expiration dates.
+    """
     sub = await RazorpayService.get_user_subscription(db, current_user.id)
     return sub

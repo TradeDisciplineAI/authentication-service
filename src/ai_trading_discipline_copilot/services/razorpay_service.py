@@ -1,3 +1,10 @@
+# ------------------ Razorpay Service Feature -----------------------
+"""
+Production-ready Razorpay Payment Gateway & Subscription Service.
+Manages subscription plan seeding, order creation, HMAC-SHA256 signature verification,
+atomic user tier upgrades, payment transaction audit logs, and active user subscription status checks.
+"""
+
 from __future__ import annotations
 
 import hashlib
@@ -26,12 +33,20 @@ settings = get_settings()
 logger = logging.getLogger(__name__)
 
 
-# ------------------ Razorpay Service Feature -----------------------
+# ------------------ Razorpay Service Class -----------------------
 class RazorpayService:
+    """
+    Core business logic class encapsulating Razorpay order operations, signature checks, and subscription lifecycle management.
+    """
 
-    # ------------------ Get Or Seed Subscription Plans -----------------------
+    # ------------------ Get Or Seed Subscription Plans Method -----------------------
     @staticmethod
     async def get_or_seed_plans(db: AsyncSession) -> list[SubscriptionPlan]:
+        """
+        Retrieves active subscription plans from the database.
+        If the database has no plans seeded, it automatically seeds the FREE plan (5 portfolio limit, ₹0)
+        and the PRO plan (15 portfolio limit, ₹1,999/mo), both granting full access to all AI Agents (1-6).
+        """
         result = await db.execute(select(SubscriptionPlan))
         plans = list(result.scalars().all())
 
@@ -64,13 +79,17 @@ class RazorpayService:
 
         return plans
 
-    # ------------------ Create Razorpay Payment Order -----------------------
+    # ------------------ Create Razorpay Payment Order Method -----------------------
     @staticmethod
     async def create_order(
         db: AsyncSession,
         user_id: uuid.UUID,
         plan_id: uuid.UUID,
     ) -> dict[str, Any]:
+        """
+        Creates a new payment order record linked to the specified user and subscription plan.
+        Generates a unique Razorpay order ID and receipt string for frontend checkout SDK initialization.
+        """
         plan_result = await db.execute(
             select(SubscriptionPlan).where(SubscriptionPlan.id == plan_id)
         )
@@ -109,9 +128,13 @@ class RazorpayService:
             "receipt": receipt,
         }
 
-    # ------------------ Verify HMAC SHA256 Signature -----------------------
+    # ------------------ Verify HMAC SHA256 Signature Method -----------------------
     @staticmethod
     def verify_hmac_signature(order_id: str, payment_id: str, signature: str) -> bool:
+        """
+        Cryptographic HMAC-SHA256 signature verification preventing payment forgery and tampering.
+        Computes signature over 'order_id|payment_id' using razorpay_key_secret and performs constant-time comparison.
+        """
         secret = settings.razorpay_key_secret.get_secret_value()
         msg = f"{order_id}|{payment_id}".encode("utf-8")
         expected_sig = hmac.new(
@@ -122,7 +145,7 @@ class RazorpayService:
 
         return hmac.compare_digest(expected_sig, signature)
 
-    # ------------------ Verify And Activate Subscription -----------------------
+    # ------------------ Verify And Activate Subscription Method -----------------------
     @staticmethod
     async def verify_and_activate_payment(
         db: AsyncSession,
@@ -131,6 +154,10 @@ class RazorpayService:
         razorpay_payment_id: str,
         razorpay_signature: str,
     ) -> dict[str, Any]:
+        """
+        Verifies payment HMAC signature, verifies order ownership, marks payment order as PAID,
+        logs payment audit transaction, upgrades user's subscription_tier to PRO, and activates 30-day user subscription.
+        """
         if not RazorpayService.verify_hmac_signature(
             razorpay_order_id, razorpay_payment_id, razorpay_signature
         ):
@@ -226,12 +253,16 @@ class RazorpayService:
             "current_period_end": period_end,
         }
 
-    # ------------------ Get User Active Subscription Details -----------------------
+    # ------------------ Get User Active Subscription Details Method -----------------------
     @staticmethod
     async def get_user_subscription(
         db: AsyncSession,
         user_id: uuid.UUID,
     ) -> dict[str, Any] | None:
+        """
+        Queries the database for active subscription details for the given user ID.
+        Returns plan name, subscription tier, status, start date, and expiration date.
+        """
         user_result = await db.execute(select(User).where(User.id == user_id))
         user = user_result.scalar_one_or_none()
         if not user:

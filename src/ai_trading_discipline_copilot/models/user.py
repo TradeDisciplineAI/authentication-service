@@ -1,3 +1,9 @@
+# ------------------ User Database Model Feature -----------------------
+"""
+SQLAlchemy ORM User model and UserRole enum defining user entity properties, authentication credentials,
+subscription tiers, brute-force lockout states, and relationships to tokens.
+"""
+
 from __future__ import annotations
 
 import enum
@@ -20,12 +26,21 @@ if TYPE_CHECKING:
 from ai_trading_discipline_copilot.core.database import Base
 
 
+# ------------------ User Role Enum Feature -----------------------
 class UserRole(enum.StrEnum):
+    """
+    Enumeration defining administrative and standard user access control roles.
+    """
     ADMIN = "admin"
     USER = "user"
 
 
+# ------------------ User Model Class -----------------------
 class User(Base):
+    """
+    Primary User database model mapping account credentials, verification flags, subscription tiers,
+    brute-force login failure counts, and token relationships in the authentication schema.
+    """
     __tablename__ = "users"
     __table_args__ = {"schema": "authentication"}
 
