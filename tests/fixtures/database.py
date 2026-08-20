@@ -106,6 +106,10 @@ async def db_engine() -> AsyncGenerator[AsyncEngine]:
                 await conn.execute(text(f'CREATE SCHEMA IF NOT EXISTS "{schema}"'))
 
         await conn.run_sync(Base.metadata.create_all)
+        await conn.execute(
+            text("ALTER TABLE authentication.subscription_plans ADD COLUMN IF NOT EXISTS max_portfolios INTEGER DEFAULT 5")
+        )
+
 
     yield engine
     await engine.dispose()
@@ -130,7 +134,10 @@ async def db_session(
 ) -> AsyncGenerator[AsyncSession]:
     """Yield a database session from the test session factory with clean isolation."""
     async with session_factory() as session:
-        # Clean user and token table rows cleanly using DELETE to avoid AccessExclusiveLock deadlocks
+        await session.execute(text("DELETE FROM authentication.payment_transactions"))
+        await session.execute(text("DELETE FROM authentication.payment_orders"))
+        await session.execute(text("DELETE FROM authentication.user_subscriptions"))
+        await session.execute(text("DELETE FROM authentication.subscription_plans"))
         await session.execute(text("DELETE FROM authentication.refresh_tokens"))
         await session.execute(
             text("DELETE FROM authentication.email_verification_tokens")
@@ -139,6 +146,7 @@ async def db_session(
         await session.execute(text("DELETE FROM authentication.users"))
         await session.commit()
         yield session
+
 
 
 @pytest.fixture

@@ -39,19 +39,21 @@ class RazorpayService:
             default_plans = [
                 SubscriptionPlan(
                     id=uuid.uuid4(),
-                    name="PRO",
-                    description="Pro Plan with advanced multi-strategy AI & risk engine access",
-                    amount=199900,  # ₹1,999.00 in paise
+                    name="FREE",
+                    description="Free tier with 5 portfolio limit, basic stock scanning and yFinance data",
+                    amount=0,
                     currency="INR",
                     billing_interval="monthly",
+                    max_portfolios=5,
                 ),
                 SubscriptionPlan(
                     id=uuid.uuid4(),
-                    name="PREMIUM",
-                    description="Premium Plan with full RAG memory, unlimited executions & priority support",
-                    amount=499900,  # ₹4,999.00 in paise
+                    name="PRO",
+                    description="Pro Plan with 15 portfolio limit, advanced multi-strategy AI, risk engine, and RAG memory",
+                    amount=199900,  # ₹1,999.00 in paise
                     currency="INR",
                     billing_interval="monthly",
+                    max_portfolios=15,
                 ),
             ]
             db.add_all(default_plans)
@@ -61,6 +63,7 @@ class RazorpayService:
             plans = list(result.scalars().all())
 
         return plans
+
 
     @staticmethod
     async def create_order(

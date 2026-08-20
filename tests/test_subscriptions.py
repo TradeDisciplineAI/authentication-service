@@ -44,10 +44,16 @@ async def test_get_subscription_plans(client: AsyncClient, db_session: AsyncSess
     response = await client.get("/subscriptions/plans")
     assert response.status_code == 200
     plans = response.json()
-    assert len(plans) >= 2
     plan_names = [p["name"] for p in plans]
+    assert "FREE" in plan_names
     assert "PRO" in plan_names
-    assert "PREMIUM" in plan_names
+    assert "PREMIUM" not in plan_names
+
+    free_plan = next(p for p in plans if p["name"] == "FREE")
+    pro_plan = next(p for p in plans if p["name"] == "PRO")
+    assert free_plan["max_portfolios"] == 5
+    assert pro_plan["max_portfolios"] == 15
+
 
 
 @pytest.mark.asyncio

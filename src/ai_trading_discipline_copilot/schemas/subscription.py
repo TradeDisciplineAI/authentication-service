@@ -12,6 +12,8 @@ class SubscriptionPlanResponse(BaseModel):
     amount: int
     currency: str
     billing_interval: str
+    max_portfolios: int
+
 
 
 class CreateOrderRequest(BaseModel):

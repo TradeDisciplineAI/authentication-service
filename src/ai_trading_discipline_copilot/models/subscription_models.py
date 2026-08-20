@@ -42,7 +42,9 @@ class SubscriptionPlan(Base):
     amount: Mapped[int] = mapped_column(Integer, nullable=False)  # in smallest currency unit (e.g. paise for INR)
     currency: Mapped[str] = mapped_column(String(10), default="INR", nullable=False)
     billing_interval: Mapped[str] = mapped_column(String(20), default="monthly", nullable=False)
+    max_portfolios: Mapped[int] = mapped_column(Integer, default=5, nullable=False)
     razorpay_plan_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
