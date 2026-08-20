@@ -18,9 +18,11 @@ from ai_trading_discipline_copilot.services.razorpay_service import RazorpayServ
 
 logger = logging.getLogger(__name__)
 
+# ------------------ Subscriptions Router Feature -----------------------
 router = APIRouter(prefix="/subscriptions", tags=["Razorpay Subscriptions"])
 
 
+# ------------------ Get Subscription Plans Endpoint -----------------------
 @router.get(
     "/plans",
     response_model=list[SubscriptionPlanResponse],
@@ -29,11 +31,11 @@ router = APIRouter(prefix="/subscriptions", tags=["Razorpay Subscriptions"])
 async def get_subscription_plans(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Retrieves available subscription plans (PRO, PREMIUM)."""
     plans = await RazorpayService.get_or_seed_plans(db)
     return plans
 
 
+# ------------------ Create Payment Order Endpoint -----------------------
 @router.post(
     "/create-order",
     response_model=CreateOrderResponse,
@@ -44,7 +46,6 @@ async def create_payment_order(
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Creates a Razorpay payment order for the requested subscription plan."""
     order_data = await RazorpayService.create_order(
         db=db,
         user_id=current_user.id,
@@ -53,6 +54,7 @@ async def create_payment_order(
     return order_data
 
 
+# ------------------ Verify Payment Signature Endpoint -----------------------
 @router.post(
     "/verify-payment",
     response_model=VerifyPaymentResponse,
@@ -63,7 +65,6 @@ async def verify_payment_signature(
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Verifies Razorpay payment signature (HMAC-SHA256), upgrades user tier & activates subscription."""
     result = await RazorpayService.verify_and_activate_payment(
         db=db,
         user_id=current_user.id,
@@ -74,6 +75,7 @@ async def verify_payment_signature(
     return result
 
 
+# ------------------ Get My Active Subscription Endpoint -----------------------
 @router.get(
     "/my-subscription",
     response_model=UserSubscriptionResponse,
@@ -83,6 +85,5 @@ async def get_my_subscription(
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Retrieves current user's subscription details."""
     sub = await RazorpayService.get_user_subscription(db, current_user.id)
     return sub

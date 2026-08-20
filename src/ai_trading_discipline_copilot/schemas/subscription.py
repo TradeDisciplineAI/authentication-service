@@ -3,6 +3,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 
+# ------------------ Subscription Plan Response Schema -----------------------
 class SubscriptionPlanResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -15,7 +16,7 @@ class SubscriptionPlanResponse(BaseModel):
     max_portfolios: int
 
 
-
+# ------------------ Create Payment Order Schemas -----------------------
 class CreateOrderRequest(BaseModel):
     plan_id: UUID
 
@@ -30,6 +31,7 @@ class CreateOrderResponse(BaseModel):
     receipt: str
 
 
+# ------------------ Verify Payment Signature Schemas -----------------------
 class VerifyPaymentRequest(BaseModel):
     razorpay_order_id: str
     razorpay_payment_id: str
@@ -43,6 +45,7 @@ class VerifyPaymentResponse(BaseModel):
     current_period_end: datetime
 
 
+# ------------------ User Subscription Response Schema -----------------------
 class UserSubscriptionResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

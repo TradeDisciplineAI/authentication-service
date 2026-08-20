@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from .user import User
 
 
+# ------------------ Subscription Enums Feature -----------------------
 class SubscriptionStatus(enum.StrEnum):
     ACTIVE = "ACTIVE"
     CANCELLED = "CANCELLED"
@@ -28,6 +29,7 @@ class OrderStatus(enum.StrEnum):
     FAILED = "FAILED"
 
 
+# ------------------ Subscription Plan Model Feature -----------------------
 class SubscriptionPlan(Base):
     __tablename__ = "subscription_plans"
     __table_args__ = {"schema": "authentication"}
@@ -39,12 +41,11 @@ class SubscriptionPlan(Base):
     )
     name: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    amount: Mapped[int] = mapped_column(Integer, nullable=False)  # in smallest currency unit (e.g. paise for INR)
+    amount: Mapped[int] = mapped_column(Integer, nullable=False)
     currency: Mapped[str] = mapped_column(String(10), default="INR", nullable=False)
     billing_interval: Mapped[str] = mapped_column(String(20), default="monthly", nullable=False)
     max_portfolios: Mapped[int] = mapped_column(Integer, default=5, nullable=False)
     razorpay_plan_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
-
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -53,6 +54,7 @@ class SubscriptionPlan(Base):
     )
 
 
+# ------------------ User Subscription Model Feature -----------------------
 class UserSubscription(Base):
     __tablename__ = "user_subscriptions"
     __table_args__ = {"schema": "authentication"}
@@ -95,6 +97,7 @@ class UserSubscription(Base):
     )
 
 
+# ------------------ Payment Order Model Feature -----------------------
 class PaymentOrder(Base):
     __tablename__ = "payment_orders"
     __table_args__ = {"schema": "authentication"}
@@ -138,6 +141,7 @@ class PaymentOrder(Base):
     )
 
 
+# ------------------ Payment Transaction Audit Model Feature -----------------------
 class PaymentTransaction(Base):
     __tablename__ = "payment_transactions"
     __table_args__ = {"schema": "authentication"}

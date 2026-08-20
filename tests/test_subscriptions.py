@@ -13,16 +13,16 @@ from ai_trading_discipline_copilot.services.razorpay_service import RazorpayServ
 settings = get_settings()
 
 
+# ------------------ Authenticated AsyncClient Helper -----------------------
 async def get_authenticated_client(client: AsyncClient, user: User) -> AsyncClient:
-    """Helper to create an authenticated AsyncClient for a given User."""
     token, _ = create_access_token(user_id=str(user.id))
     client.headers["Authorization"] = f"Bearer {token}"
     return client
 
 
+# ------------------ Sample Test User Fixture -----------------------
 @pytest.fixture
 async def sample_user(db_session: AsyncSession) -> User:
-    """Fixture that creates and persists a test User in the DB."""
     user = User(
         id=uuid.uuid4(),
         username=f"sub_user_{uuid.uuid4().hex[:6]}",
@@ -38,9 +38,9 @@ async def sample_user(db_session: AsyncSession) -> User:
     return user
 
 
+# ------------------ Get Subscription Plans Test -----------------------
 @pytest.mark.asyncio
 async def test_get_subscription_plans(client: AsyncClient, db_session: AsyncSession):
-    """Test retrieving public subscription plans."""
     response = await client.get("/subscriptions/plans")
     assert response.status_code == 200
     plans = response.json()
@@ -55,25 +55,22 @@ async def test_get_subscription_plans(client: AsyncClient, db_session: AsyncSess
     assert pro_plan["max_portfolios"] == 15
 
 
-
+# ------------------ Create Payment Order Test -----------------------
 @pytest.mark.asyncio
 async def test_create_payment_order(
     client: AsyncClient,
     db_session: AsyncSession,
     sample_user: User,
 ):
-    """Test creating a Razorpay payment order for a plan."""
     plans = await RazorpayService.get_or_seed_plans(db_session)
     pro_plan = next(p for p in plans if p.name == "PRO")
 
-    # Unauthenticated request should fail
     unauth_resp = await client.post(
         "/subscriptions/create-order",
         json={"plan_id": str(pro_plan.id)},
     )
     assert unauth_resp.status_code == 401
 
-    # Authenticated request should succeed
     auth_client = await get_authenticated_client(client, sample_user)
     response = await auth_client.post(
         "/subscriptions/create-order",
@@ -87,17 +84,16 @@ async def test_create_payment_order(
     assert data["plan_name"] == "PRO"
 
 
+# ------------------ Verify Valid Payment Signature Test -----------------------
 @pytest.mark.asyncio
 async def test_verify_valid_payment_signature(
     client: AsyncClient,
     db_session: AsyncSession,
     sample_user: User,
 ):
-    """Test valid HMAC SHA256 payment signature verification & tier upgrade."""
     plans = await RazorpayService.get_or_seed_plans(db_session)
     pro_plan = next(p for p in plans if p.name == "PRO")
 
-    # Create Order
     order_data = await RazorpayService.create_order(
         db=db_session,
         user_id=sample_user.id,
@@ -106,14 +102,12 @@ async def test_verify_valid_payment_signature(
     rzp_order_id = order_data["razorpay_order_id"]
     rzp_payment_id = f"pay_{uuid.uuid4().hex[:12]}"
 
-    # Generate Valid HMAC SHA256 Signature
     secret = settings.razorpay_key_secret.get_secret_value()
     msg = f"{rzp_order_id}|{rzp_payment_id}".encode("utf-8")
     valid_signature = hmac.new(secret.encode("utf-8"), msg, hashlib.sha256).hexdigest()
 
     auth_client = await get_authenticated_client(client, sample_user)
 
-    # Verify Payment
     verify_resp = await auth_client.post(
         "/subscriptions/verify-payment",
         json={
@@ -127,7 +121,6 @@ async def test_verify_valid_payment_signature(
     assert res_data["status"] == "SUCCESS"
     assert res_data["subscription_tier"] == "PRO"
 
-    # Check User Subscription Status endpoint
     sub_resp = await auth_client.get("/subscriptions/my-subscription")
     assert sub_resp.status_code == 200
     sub_data = sub_resp.json()
@@ -135,13 +128,13 @@ async def test_verify_valid_payment_signature(
     assert sub_data["status"] == "ACTIVE"
 
 
+# ------------------ Reject Invalid Payment Signature Test -----------------------
 @pytest.mark.asyncio
 async def test_reject_invalid_payment_signature(
     client: AsyncClient,
     db_session: AsyncSession,
     sample_user: User,
 ):
-    """Test tampered/fake HMAC signature rejection (400 Bad Request)."""
     plans = await RazorpayService.get_or_seed_plans(db_session)
     pro_plan = next(p for p in plans if p.name == "PRO")
 

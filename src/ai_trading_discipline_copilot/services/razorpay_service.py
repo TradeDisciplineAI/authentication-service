@@ -26,12 +26,12 @@ settings = get_settings()
 logger = logging.getLogger(__name__)
 
 
+# ------------------ Razorpay Service Feature -----------------------
 class RazorpayService:
-    """Production-ready Razorpay Payment Gateway & Subscription Service."""
 
+    # ------------------ Get Or Seed Subscription Plans -----------------------
     @staticmethod
     async def get_or_seed_plans(db: AsyncSession) -> list[SubscriptionPlan]:
-        """Fetch active plans or seed default PRO and PREMIUM plans if DB is empty."""
         result = await db.execute(select(SubscriptionPlan))
         plans = list(result.scalars().all())
 
@@ -50,7 +50,7 @@ class RazorpayService:
                     id=uuid.uuid4(),
                     name="PRO",
                     description="Pro plan with 15 portfolio limit and full access to all AI Agents (Agents 1-6)",
-                    amount=199900,  # ₹1,999.00 in paise
+                    amount=199900,
                     currency="INR",
                     billing_interval="monthly",
                     max_portfolios=15,
@@ -59,21 +59,18 @@ class RazorpayService:
             db.add_all(default_plans)
             await db.commit()
 
-
             result = await db.execute(select(SubscriptionPlan))
             plans = list(result.scalars().all())
 
         return plans
 
-
+    # ------------------ Create Razorpay Payment Order -----------------------
     @staticmethod
     async def create_order(
         db: AsyncSession,
         user_id: uuid.UUID,
         plan_id: uuid.UUID,
     ) -> dict[str, Any]:
-        """Creates a payment order and registers it with Razorpay."""
-        # 1. Fetch Plan
         plan_result = await db.execute(
             select(SubscriptionPlan).where(SubscriptionPlan.id == plan_id)
         )
@@ -84,15 +81,10 @@ class RazorpayService:
                 detail="Subscription plan not found.",
             )
 
-        # 2. Generate Receipt ID
         receipt = f"rcpt_{uuid.uuid4().hex[:12]}"
         razorpay_key_id = settings.razorpay_key_id
-
-        # 3. Create Razorpay Order ID
-        # If live razorpay package is configured, call API; otherwise fallback to structured order ID
         razorpay_order_id = f"order_{uuid.uuid4().hex[:14]}"
 
-        # 4. Save PaymentOrder to DB
         order = PaymentOrder(
             id=uuid.uuid4(),
             user_id=user_id,
@@ -117,9 +109,9 @@ class RazorpayService:
             "receipt": receipt,
         }
 
+    # ------------------ Verify HMAC SHA256 Signature -----------------------
     @staticmethod
     def verify_hmac_signature(order_id: str, payment_id: str, signature: str) -> bool:
-        """Cryptographic HMAC-SHA256 signature verification preventing forgery."""
         secret = settings.razorpay_key_secret.get_secret_value()
         msg = f"{order_id}|{payment_id}".encode("utf-8")
         expected_sig = hmac.new(
@@ -130,6 +122,7 @@ class RazorpayService:
 
         return hmac.compare_digest(expected_sig, signature)
 
+    # ------------------ Verify And Activate Subscription -----------------------
     @staticmethod
     async def verify_and_activate_payment(
         db: AsyncSession,
@@ -138,8 +131,6 @@ class RazorpayService:
         razorpay_payment_id: str,
         razorpay_signature: str,
     ) -> dict[str, Any]:
-        """Verifies payment signature, updates payment order status, upgrades user tier & activates subscription."""
-        # 1. Verify HMAC Signature
         if not RazorpayService.verify_hmac_signature(
             razorpay_order_id, razorpay_payment_id, razorpay_signature
         ):
@@ -153,7 +144,6 @@ class RazorpayService:
                 detail="Invalid payment signature. Payment verification failed.",
             )
 
-        # 2. Fetch Payment Order from DB
         order_result = await db.execute(
             select(PaymentOrder).where(
                 PaymentOrder.razorpay_order_id == razorpay_order_id
@@ -166,14 +156,12 @@ class RazorpayService:
                 detail="Payment order not found.",
             )
 
-        # 3. Ownership Verification
         if order.user_id != user_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You do not own this payment order.",
             )
 
-        # 4. Fetch User and Subscription Plan
         user_result = await db.execute(select(User).where(User.id == user_id))
         user = user_result.scalar_one_or_none()
         if not user:
@@ -188,11 +176,9 @@ class RazorpayService:
         plan = plan_result.scalar_one_or_none()
         plan_name = plan.name if plan else "PRO"
 
-        # 5. Mark Order as PAID
         order.status = OrderStatus.PAID
         db.add(order)
 
-        # 6. Save PaymentTransaction audit log
         transaction = PaymentTransaction(
             id=uuid.uuid4(),
             order_id=order.id,
@@ -204,11 +190,9 @@ class RazorpayService:
         )
         db.add(transaction)
 
-        # 7. Upgrade User Subscription Tier
         user.subscription_tier = plan_name
         db.add(user)
 
-        # 8. Create or Update UserSubscription record
         now = datetime.now(UTC)
         period_end = now + timedelta(days=30)
 
@@ -242,12 +226,12 @@ class RazorpayService:
             "current_period_end": period_end,
         }
 
+    # ------------------ Get User Active Subscription Details -----------------------
     @staticmethod
     async def get_user_subscription(
         db: AsyncSession,
         user_id: uuid.UUID,
     ) -> dict[str, Any] | None:
-        """Fetches active user subscription details."""
         user_result = await db.execute(select(User).where(User.id == user_id))
         user = user_result.scalar_one_or_none()
         if not user:
