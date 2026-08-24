@@ -1,0 +1,84 @@
+# =============================================================================
+# Deployment — Celery Beat Scheduler
+#
+# Translates the 'auth_celery_beat' service from docker-compose.yml.
+#
+# Docker Compose equivalent:
+#   auth_celery_beat:
+#     build: { context: ., dockerfile: Dockerfile }
+#     command: >
+#       celery -A ai_trading_discipline_copilot.core.celery.celery_app
+#       beat --loglevel=info --schedule=/tmp/celerybeat-schedule.db
+#     restart: always
+#
+# ⚠️  CRITICAL: replicas MUST be 1.
+#     Running multiple Beat instances will cause duplicate scheduled tasks.
+# =============================================================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-celery-beat
+  namespace: trading
+  labels:
+    app.kubernetes.io/name: auth-service
+    app.kubernetes.io/component: scheduler
+    app.kubernetes.io/part-of: trading-platform
+spec:
+  # ⚠️  DO NOT increase this. Beat must be a singleton.
+  replicas: 1
+  strategy:
+    # Recreate ensures the old pod is fully terminated before the new one starts.
+    # This prevents two Beat instances from running simultaneously during rollouts.
+    type: Recreate
+  selector:
+    matchLabels:
+      app: auth-celery-beat
+  template:
+    metadata:
+      labels:
+        app: auth-celery-beat
+        app.kubernetes.io/name: auth-service
+        app.kubernetes.io/component: scheduler
+    spec:
+      # ── DNS Configuration ──────────────────────────────────────────────────
+      dnsPolicy: "None"
+      dnsConfig:
+        nameservers:
+          - "8.8.8.8"
+          - "1.1.1.1"
+        searches:
+          - "trading.svc.cluster.local"
+          - "svc.cluster.local"
+          - "cluster.local"
+
+      containers:
+        - name: auth-celery-beat
+          image: trading/auth-service:latest
+          imagePullPolicy: Never
+
+          # ── Command ───────────────────────────────────────────────────────
+          # Identical to docker-compose command
+          command:
+            - "celery"
+            - "-A"
+            - "ai_trading_discipline_copilot.core.celery.celery_app"
+            - "beat"
+            - "--loglevel=info"
+            - "--schedule=/tmp/celerybeat-schedule.db"
+
+          # ── Environment Variables ─────────────────────────────────────────
+          envFrom:
+            - configMapRef:
+                name: auth-config
+            - secretRef:
+                name: auth-secrets
+
+          # ── Resource Limits ───────────────────────────────────────────────
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi

@@ -1,0 +1,107 @@
+# =============================================================================
+# Deployment — Authentication Service (FastAPI)
+#
+# Translates the 'auth_app' service from docker-compose.yml.
+#
+# Docker Compose equivalent:
+#   auth_app:
+#     build: { context: ., target: development }
+#     ports: "8000:8000"
+#     command: ["sh", "-c", "alembic upgrade head && uvicorn ..."]
+#     environment: [...]
+#     restart: always
+#
+# Key differences in Kubernetes:
+#   - Uses the production (runtime) stage, not development
+#   - Image must be pre-built (Kubernetes doesn't build images)
+#   - restart: always → built into Kubernetes (restartPolicy: Always)
+#   - DNS is configured via dnsPolicy + dnsConfig
+#   - Environment variables come from ConfigMap + Secret
+# =============================================================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-app
+  namespace: trading
+  labels:
+    app.kubernetes.io/name: auth-service
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: trading-platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: auth-app
+  template:
+    metadata:
+      labels:
+        app: auth-app
+        app.kubernetes.io/name: auth-service
+        app.kubernetes.io/component: api
+    spec:
+      # ── DNS Configuration ──────────────────────────────────────────────────
+      # Mirrors docker-compose dns: [8.8.8.8, 1.1.1.1]
+      dnsPolicy: "None"
+      dnsConfig:
+        nameservers:
+          - "8.8.8.8"
+          - "1.1.1.1"
+        searches:
+          - "trading.svc.cluster.local"
+          - "svc.cluster.local"
+          - "cluster.local"
+
+      containers:
+        - name: auth-app
+          image: trading/auth-service:latest
+          imagePullPolicy: Never    # Use locally-built image (Docker Desktop shares images)
+
+          # ── Command ───────────────────────────────────────────────────────
+          # Same as docker-compose command:
+          #   ["sh", "-c", "alembic upgrade head && uvicorn ... --host 0.0.0.0 --port 8000"]
+          command: ["sh", "-c"]
+          args:
+            - "alembic upgrade head && uvicorn ai_trading_discipline_copilot.main:app --host 0.0.0.0 --port 8000"
+
+          ports:
+            - containerPort: 8000
+              protocol: TCP
+
+          # ── Environment Variables ─────────────────────────────────────────
+          # Non-sensitive values from ConfigMap (mirrors hardcoded compose env vars)
+          envFrom:
+            - configMapRef:
+                name: auth-config
+            - secretRef:
+                name: auth-secrets
+
+          # ── Health Checks ─────────────────────────────────────────────────
+          # Mirrors Dockerfile HEALTHCHECK:
+          #   CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
+          #   interval=30s, timeout=10s, start-period=15s, retries=3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+          # ── Resource Limits ───────────────────────────────────────────────
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi

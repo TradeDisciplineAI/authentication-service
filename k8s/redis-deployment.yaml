@@ -1,0 +1,68 @@
+# =============================================================================
+# Redis — Deployment + Service
+#
+# Replaces the 'shared_redis' container from infrastructure/docker-compose.yml
+# for the Kubernetes environment.
+#
+# Docker Compose equivalent:
+#   redis:
+#     image: redis:7-alpine
+#     command: redis-server --appendonly yes
+#     ports: "6379:6379"
+#
+# In Kubernetes, other pods reach Redis via the Service DNS name: redis:6379
+# (equivalent to shared_redis:6379 on trading_network in Compose)
+# =============================================================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: trading
+  labels:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/component: cache
+    app.kubernetes.io/part-of: trading-platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+        app.kubernetes.io/name: redis
+        app.kubernetes.io/component: cache
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          command: ["redis-server", "--appendonly", "yes"]
+          ports:
+            - containerPort: 6379
+              protocol: TCP
+          # ── Health Check ────────────────────────────────────────────────────
+          # Mirrors the Docker Compose healthcheck:
+          #   test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+          livenessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 5
+          readinessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 5
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi

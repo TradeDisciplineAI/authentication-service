@@ -1,0 +1,81 @@
+# =============================================================================
+# Deployment — Celery Worker
+#
+# Translates the 'auth_celery' service from docker-compose.yml.
+#
+# Docker Compose equivalent:
+#   auth_celery:
+#     build: { context: ., dockerfile: Dockerfile }
+#     command: ["celery", "-A", "...", "worker", "-Q", "auth_queue", "--loglevel=info"]
+#     environment: [REDIS_URL, DATABASE_URL, SECRET_KEY, ...]
+#     restart: always
+#
+# Key Kubernetes notes:
+#   - No Service needed (workers don't receive inbound traffic)
+#   - Workers PULL tasks from Redis, they don't LISTEN on a port
+#   - Can scale replicas independently: kubectl scale deployment auth-celery --replicas=3
+# =============================================================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-celery
+  namespace: trading
+  labels:
+    app.kubernetes.io/name: auth-service
+    app.kubernetes.io/component: worker
+    app.kubernetes.io/part-of: trading-platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: auth-celery
+  template:
+    metadata:
+      labels:
+        app: auth-celery
+        app.kubernetes.io/name: auth-service
+        app.kubernetes.io/component: worker
+    spec:
+      # ── DNS Configuration ──────────────────────────────────────────────────
+      dnsPolicy: "None"
+      dnsConfig:
+        nameservers:
+          - "8.8.8.8"
+          - "1.1.1.1"
+        searches:
+          - "trading.svc.cluster.local"
+          - "svc.cluster.local"
+          - "cluster.local"
+
+      containers:
+        - name: auth-celery
+          image: trading/auth-service:latest
+          imagePullPolicy: Never
+
+          # ── Command ───────────────────────────────────────────────────────
+          # Identical to docker-compose command
+          command:
+            - "celery"
+            - "-A"
+            - "ai_trading_discipline_copilot.core.celery.celery_app"
+            - "worker"
+            - "-Q"
+            - "auth_queue"
+            - "--loglevel=info"
+
+          # ── Environment Variables ─────────────────────────────────────────
+          envFrom:
+            - configMapRef:
+                name: auth-config
+            - secretRef:
+                name: auth-secrets
+
+          # ── Resource Limits ───────────────────────────────────────────────
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
