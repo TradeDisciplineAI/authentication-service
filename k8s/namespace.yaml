@@ -1,0 +1,14 @@
+# =============================================================================
+# Kubernetes Namespace — AI Trading Discipline Copilot
+#
+# Isolates all trading platform resources into a dedicated namespace.
+# Apply first: kubectl apply -f namespace.yaml
+# =============================================================================
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: trading
+  labels:
+    app.kubernetes.io/part-of: trading-platform
+    app.kubernetes.io/managed-by: kubectl
