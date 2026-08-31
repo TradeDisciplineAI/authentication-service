@@ -51,6 +51,11 @@ services:
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
 
+      # ------------------ Razorpay Payment Gateway -----------------------
+      - RAZORPAY_KEY_ID=${RAZORPAY_KEY_ID:-rzp_test_SngZ52YmkcixbB}
+      - RAZORPAY_KEY_SECRET=${RAZORPAY_KEY_SECRET:-hzG2fy9GDuAzmcWrYTACd8oD}
+      - RAZORPAY_WEBHOOK_SECRET=${RAZORPAY_WEBHOOK_SECRET:-mock_webhook_secret_987654321}
+
     networks:
       - trading_network
 

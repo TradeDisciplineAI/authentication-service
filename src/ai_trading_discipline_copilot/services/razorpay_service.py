@@ -14,6 +14,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+import httpx
 from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -102,7 +103,44 @@ class RazorpayService:
 
         receipt = f"rcpt_{uuid.uuid4().hex[:12]}"
         razorpay_key_id = settings.razorpay_key_id
+        razorpay_key_secret = settings.razorpay_key_secret.get_secret_value()
         razorpay_order_id = f"order_{uuid.uuid4().hex[:14]}"
+
+        # ------------------ Razorpay API Order Registration -----------------------
+        # If valid non-mock API keys are present, register the order on Razorpay Gateway
+        if (
+            razorpay_key_id
+            and not razorpay_key_id.startswith("rzp_test_mock")
+            and razorpay_key_secret
+            and not razorpay_key_secret.startswith("mock_")
+        ):
+            try:
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    rzp_response = await client.post(
+                        "https://api.razorpay.com/v1/orders",
+                        auth=(razorpay_key_id, razorpay_key_secret),
+                        json={
+                            "amount": plan.amount,
+                            "currency": plan.currency,
+                            "receipt": receipt,
+                            "notes": {
+                                "user_id": str(user_id),
+                                "plan_name": plan.name,
+                            },
+                        },
+                    )
+                    if rzp_response.status_code in (200, 201):
+                        rzp_data = rzp_response.json()
+                        razorpay_order_id = rzp_data.get("id", razorpay_order_id)
+                        logger.info("Successfully created Razorpay order %s", razorpay_order_id)
+                    else:
+                        logger.warning(
+                            "Razorpay API order creation failed (%d): %s. Using local order ID.",
+                            rzp_response.status_code,
+                            rzp_response.text,
+                        )
+            except Exception as e:
+                logger.warning("Error communicating with Razorpay API: %s. Using local order ID.", e)
 
         order = PaymentOrder(
             id=uuid.uuid4(),
