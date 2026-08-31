@@ -61,6 +61,7 @@ app.add_middleware(
         "Accept",
         "Origin",
         "X-Requested-With",
+        "X-Payment-Token",  # Required for /auth/subscribe CORS preflight — browser sends this custom header when upgrading subscription
     ],
 )
 
