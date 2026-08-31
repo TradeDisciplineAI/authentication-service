@@ -35,13 +35,33 @@ spec:
         app.kubernetes.io/name: redis
         app.kubernetes.io/component: cache
     spec:
+      securityContext:
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+        runAsNonRoot: true
+
       containers:
         - name: redis
           image: redis:7-alpine
+
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+
           command: ["redis-server", "--appendonly", "yes"]
           ports:
             - containerPort: 6379
               protocol: TCP
+
+          # ── Durable Storage ──────────────────────────────────────────────────
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
+
           # ── Health Check ────────────────────────────────────────────────────
           # Mirrors the Docker Compose healthcheck:
           #   test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
@@ -66,3 +86,8 @@ spec:
             limits:
               cpu: 200m
               memory: 256Mi
+
+      volumes:
+        - name: redis-data
+          persistentVolumeClaim:
+            claimName: redis-data-pvc

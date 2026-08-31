@@ -64,8 +64,10 @@ kubectl apply -f k8s/namespace.yaml
 kubectl apply -f k8s/configmap.yaml
 kubectl apply -f k8s/secret.yaml
 
-# 3. Deploy Redis (auth service depends on it)
+# 3. Deploy Redis storage, deployment, and service (auth service depends on it)
+kubectl apply -f k8s/redis-pvc.yaml
 kubectl apply -f k8s/redis-deployment.yaml
+kubectl apply -f k8s/redis-service.yaml
 
 # 4. Deploy the authentication service
 kubectl apply -f k8s/deployment.yaml
@@ -74,10 +76,10 @@ kubectl apply -f k8s/celery-deployment.yaml
 kubectl apply -f k8s/celery-beat-deployment.yaml
 ```
 
-Or apply everything at once:
+Or apply using Kustomize (safely excludes `secret.example.yaml`):
 
 ```bash
-kubectl apply -f k8s/
+kubectl apply -k k8s/
 ```
 
 ---
@@ -98,8 +100,8 @@ kubectl get pods -n trading
 # Check services
 kubectl get services -n trading
 
-# Check health endpoint (accessible via NodePort)
-curl http://localhost:30080/health
+# Check health endpoint (accessible via LoadBalancer service on port 8000)
+curl http://localhost:8000/health
 ```
 
 ---
@@ -142,8 +144,8 @@ kubectl rollout restart deployment auth-celery-beat -n trading
 ## Teardown
 
 ```bash
-# Remove all auth-service resources
-kubectl delete -f k8s/
+# Remove all auth-service resources via Kustomize
+kubectl delete -k k8s/
 
 # Or remove the entire namespace (deletes everything in it)
 kubectl delete namespace trading
@@ -155,11 +157,15 @@ kubectl delete namespace trading
 
 | File | Purpose |
 |---|---|
+| `kustomization.yaml` | Kustomize bundle configuration (excludes `secret.example.yaml`) |
 | `namespace.yaml` | Creates the `trading` namespace |
 | `configmap.yaml` | Non-sensitive environment variables |
 | `secret.yaml` | Sensitive environment variables (base64) |
-| `redis-deployment.yaml` | Redis Deployment + Service |
+| `secret.example.yaml` | Template for sensitive secrets with safe placeholder values |
+| `redis-pvc.yaml` | PersistentVolumeClaim for Redis data directory |
+| `redis-deployment.yaml` | Redis Deployment |
+| `redis-service.yaml` | Internal ClusterIP Service for Redis (`redis:6379`) |
 | `deployment.yaml` | FastAPI app Deployment |
-| `service.yaml` | Exposes FastAPI on NodePort 30080 |
+| `service.yaml` | Exposes FastAPI as LoadBalancer service on port 8000 |
 | `celery-deployment.yaml` | Celery worker Deployment |
 | `celery-beat-deployment.yaml` | Celery Beat scheduler Deployment |
