@@ -20,7 +20,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: auth-celery
-  namespace: trading
+  namespace: authentication
   labels:
     app.kubernetes.io/name: auth-service
     app.kubernetes.io/component: worker
@@ -44,6 +44,7 @@ spec:
       # ── Security Context ──────────────────────────────────────────────────
       securityContext:
         runAsNonRoot: true
+        runAsUser: 1000
 
       containers:
         - name: auth-celery

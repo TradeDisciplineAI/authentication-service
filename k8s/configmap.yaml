@@ -16,7 +16,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: auth-config
-  namespace: trading
+  namespace: authentication
   labels:
     app.kubernetes.io/name: auth-service
     app.kubernetes.io/component: config
@@ -53,4 +53,4 @@ data:
   # ── Hosts ────────────────────────────────────────────────────────────────────
   # Explicit allowlist of known safe hostnames for TrustedHostMiddleware validation.
   # Health probes send Host: localhost via probe httpHeaders.
-  ALLOWED_HOSTS: '["localhost","127.0.0.1","auth-app","auth-app.trading.svc.cluster.local","auth-app.trading"]'
+  ALLOWED_HOSTS: '["localhost","127.0.0.1","auth-app","auth-app.authentication.svc.cluster.local","auth-app.authentication"]'

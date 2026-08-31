@@ -18,7 +18,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: redis
-  namespace: trading
+  namespace: authentication
   labels:
     app.kubernetes.io/name: redis
     app.kubernetes.io/component: cache

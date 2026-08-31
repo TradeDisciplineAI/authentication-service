@@ -88,7 +88,7 @@ kubectl apply -k k8s/
 
 ```bash
 # Check all pods are Running
-kubectl get pods -n trading
+kubectl get pods -n authentication
 
 # Expected output:
 # NAME                               READY   STATUS    RESTARTS   AGE
@@ -98,7 +98,7 @@ kubectl get pods -n trading
 # redis-xxxxx                        1/1     Running   0          1m
 
 # Check services
-kubectl get services -n trading
+kubectl get services -n authentication
 
 # Check health endpoint (accessible via LoadBalancer service on port 8000)
 curl http://localhost:8000/health
@@ -110,33 +110,33 @@ curl http://localhost:8000/health
 
 ```bash
 # ── View Resources ─────────────────────────────────────────────────────────
-kubectl get all -n trading                    # See everything
-kubectl get pods -n trading -o wide           # Pods with node/IP info
-kubectl describe pod <pod-name> -n trading    # Detailed pod info
+kubectl get all -n authentication                    # See everything
+kubectl get pods -n authentication -o wide           # Pods with node/IP info
+kubectl describe pod <pod-name> -n authentication    # Detailed pod info
 
 # ── Logs ───────────────────────────────────────────────────────────────────
-kubectl logs -n trading -l app=auth-app       # FastAPI logs
-kubectl logs -n trading -l app=auth-celery    # Celery worker logs
-kubectl logs -n trading -l app=auth-celery-beat  # Beat scheduler logs
-kubectl logs -f -n trading <pod-name>         # Stream logs (like docker logs -f)
+kubectl logs -n authentication -l app=auth-app       # FastAPI logs
+kubectl logs -n authentication -l app=auth-celery    # Celery worker logs
+kubectl logs -n authentication -l app=auth-celery-beat  # Beat scheduler logs
+kubectl logs -f -n authentication <pod-name>         # Stream logs (like docker logs -f)
 
 # ── Shell Access ───────────────────────────────────────────────────────────
-kubectl exec -it -n trading <pod-name> -- sh  # Shell into a pod
+kubectl exec -it -n authentication <pod-name> -- sh  # Shell into a pod
 
 # ── Scaling ────────────────────────────────────────────────────────────────
-kubectl scale deployment auth-app -n trading --replicas=3      # Scale API
-kubectl scale deployment auth-celery -n trading --replicas=2   # Scale workers
+kubectl scale deployment auth-app -n authentication --replicas=3      # Scale API
+kubectl scale deployment auth-celery -n authentication --replicas=2   # Scale workers
 # ⚠️  DO NOT scale auth-celery-beat beyond 1!
 
 # ── Restart ────────────────────────────────────────────────────────────────
-kubectl rollout restart deployment auth-app -n trading
+kubectl rollout restart deployment auth-app -n authentication
 
 # ── Update Image ───────────────────────────────────────────────────────────
 # After rebuilding the Docker image:
 docker build -t trading/auth-service:latest .
-kubectl rollout restart deployment auth-app -n trading
-kubectl rollout restart deployment auth-celery -n trading
-kubectl rollout restart deployment auth-celery-beat -n trading
+kubectl rollout restart deployment auth-app -n authentication
+kubectl rollout restart deployment auth-celery -n authentication
+kubectl rollout restart deployment auth-celery-beat -n authentication
 ```
 
 ---
@@ -148,7 +148,7 @@ kubectl rollout restart deployment auth-celery-beat -n trading
 kubectl delete -k k8s/
 
 # Or remove the entire namespace (deletes everything in it)
-kubectl delete namespace trading
+kubectl delete namespace authentication
 ```
 
 ---
@@ -158,7 +158,7 @@ kubectl delete namespace trading
 | File | Purpose |
 |---|---|
 | `kustomization.yaml` | Kustomize bundle configuration (excludes `secret.example.yaml`) |
-| `namespace.yaml` | Creates the `trading` namespace |
+| `namespace.yaml` | Creates the `authentication` namespace |
 | `configmap.yaml` | Non-sensitive environment variables |
 | `secret.yaml` | Sensitive environment variables (base64) |
 | `secret.example.yaml` | Template for sensitive secrets with safe placeholder values |

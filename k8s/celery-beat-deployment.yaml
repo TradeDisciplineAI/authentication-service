@@ -19,7 +19,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: auth-celery-beat
-  namespace: trading
+  namespace: authentication
   labels:
     app.kubernetes.io/name: auth-service
     app.kubernetes.io/component: scheduler
@@ -48,6 +48,7 @@ spec:
       # ── Security Context ──────────────────────────────────────────────────
       securityContext:
         runAsNonRoot: true
+        runAsUser: 1000
 
       containers:
         - name: auth-celery-beat

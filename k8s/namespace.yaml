@@ -8,7 +8,7 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: trading
+  name: authentication
   labels:
     app.kubernetes.io/part-of: trading-platform
     app.kubernetes.io/managed-by: kubectl
