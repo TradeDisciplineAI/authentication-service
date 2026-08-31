@@ -38,20 +38,24 @@ spec:
         app.kubernetes.io/component: worker
     spec:
       # ── DNS Configuration ──────────────────────────────────────────────────
-      dnsPolicy: "None"
-      dnsConfig:
-        nameservers:
-          - "8.8.8.8"
-          - "1.1.1.1"
-        searches:
-          - "trading.svc.cluster.local"
-          - "svc.cluster.local"
-          - "cluster.local"
+      # Uses standard Kubernetes cluster DNS (CoreDNS/Kube-DNS)
+      dnsPolicy: ClusterFirst
+
+      # ── Security Context ──────────────────────────────────────────────────
+      securityContext:
+        runAsNonRoot: true
 
       containers:
         - name: auth-celery
           image: trading/auth-service:latest
           imagePullPolicy: Never
+
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
 
           # ── Command ───────────────────────────────────────────────────────
           # Identical to docker-compose command

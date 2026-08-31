@@ -51,7 +51,6 @@ data:
   FRONTEND_URL: "http://localhost:3000"
 
   # ── Hosts ────────────────────────────────────────────────────────────────────
-  # In Kubernetes, health probes arrive from the kubelet using Pod IPs as the
-  # Host header (e.g. 10.244.0.6). TrustedHostMiddleware rejects unknown hosts.
-  # We allow "*" here to match how market-service handles it in Docker Compose.
-  ALLOWED_HOSTS: '["*"]'
+  # Explicit allowlist of known safe hostnames for TrustedHostMiddleware validation.
+  # Health probes send Host: localhost via probe httpHeaders.
+  ALLOWED_HOSTS: '["localhost","127.0.0.1","auth-app","auth-app.trading.svc.cluster.local","auth-app.trading"]'

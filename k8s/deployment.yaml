@@ -41,21 +41,24 @@ spec:
         app.kubernetes.io/component: api
     spec:
       # ── DNS Configuration ──────────────────────────────────────────────────
-      # Mirrors docker-compose dns: [8.8.8.8, 1.1.1.1]
-      dnsPolicy: "None"
-      dnsConfig:
-        nameservers:
-          - "8.8.8.8"
-          - "1.1.1.1"
-        searches:
-          - "trading.svc.cluster.local"
-          - "svc.cluster.local"
-          - "cluster.local"
+      # Uses standard Kubernetes cluster DNS (CoreDNS/Kube-DNS)
+      dnsPolicy: ClusterFirst
+
+      # ── Security Context ──────────────────────────────────────────────────
+      securityContext:
+        runAsNonRoot: true
 
       containers:
         - name: auth-app
           image: trading/auth-service:latest
           imagePullPolicy: Never    # Use locally-built image (Docker Desktop shares images)
+
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
 
           # ── Command ───────────────────────────────────────────────────────
           # Same as docker-compose command:
@@ -84,6 +87,9 @@ spec:
             httpGet:
               path: /health
               port: 8000
+              httpHeaders:
+                - name: Host
+                  value: localhost
             initialDelaySeconds: 15
             periodSeconds: 30
             timeoutSeconds: 10
@@ -92,6 +98,9 @@ spec:
             httpGet:
               path: /health
               port: 8000
+              httpHeaders:
+                - name: Host
+                  value: localhost
             initialDelaySeconds: 10
             periodSeconds: 10
             timeoutSeconds: 5
