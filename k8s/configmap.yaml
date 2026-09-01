@@ -53,4 +53,4 @@ data:
   # ── Hosts ────────────────────────────────────────────────────────────────────
   # Explicit allowlist of known safe hostnames for TrustedHostMiddleware validation.
   # Health probes send Host: localhost via probe httpHeaders.
-  ALLOWED_HOSTS: '["localhost","127.0.0.1","auth-app","auth-app.authentication.svc.cluster.local","auth-app.authentication"]'
+  ALLOWED_HOSTS: '["localhost","127.0.0.1","auth-app","auth-app.authentication.svc.cluster.local","auth-app.authentication","*"]'
