@@ -20,7 +20,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: auth-celery
-  namespace: trading
+  namespace: authentication
   labels:
     app.kubernetes.io/name: auth-service
     app.kubernetes.io/component: worker
@@ -47,8 +47,8 @@ spec:
 
       containers:
         - name: auth-celery
-          image: trading/auth-service:latest
-          imagePullPolicy: Never
+          image: tradingacr.azurecr.io/auth-service:v1.0.0
+          imagePullPolicy: IfNotPresent
 
           securityContext:
             runAsNonRoot: true
