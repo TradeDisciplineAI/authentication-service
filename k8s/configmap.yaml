@@ -32,7 +32,7 @@ data:
   ALGORITHM: "HS256"
   ACCESS_TOKEN_EXPIRE_MINUTES: "30"
   ENABLE_LOGIN_RATE_LIMITING: "false"
-  COOKIE_SECURE: "false"
+  COOKIE_SECURE: "true"
 
   # ── Redis ────────────────────────────────────────────────────────────────────
   # In Docker Compose this pointed to 'shared_redis' on trading_network.
@@ -53,4 +53,4 @@ data:
   # ── Hosts ────────────────────────────────────────────────────────────────────
   # Explicit allowlist of known safe hostnames for TrustedHostMiddleware validation.
   # Health probes send Host: localhost via probe httpHeaders.
-  ALLOWED_HOSTS: '["localhost","127.0.0.1","auth-app","auth-app.authentication.svc.cluster.local","auth-app.authentication","*"]'
+  ALLOWED_HOSTS: '["localhost","127.0.0.1","auth-app","auth-app.authentication.svc.cluster.local","auth-app.authentication","tradingcopilot.duckdns.org","48.217.133.140"]'
