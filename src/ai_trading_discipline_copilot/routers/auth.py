@@ -699,6 +699,14 @@ async def resend_verification(
     return ResendVerificationResponse(message="Verification email sent.")
 
 
+def _get_google_redirect_uri(request: Request) -> str:
+    if settings.public_api_url:
+        base_url = settings.public_api_url.rstrip("/")
+        path = request.url_for("google_callback").path
+        return f"{base_url}{path}"
+    return str(request.url_for("google_callback"))
+
+
 @router.get("/oauth2/google/login")
 async def google_login(request: Request) -> RedirectResponse:
     """Redirect to Google's OAuth2 consent page."""
@@ -722,7 +730,7 @@ async def google_login(request: Request) -> RedirectResponse:
     google_auth_url = (
         "https://accounts.google.com/o/oauth2/v2/auth"
         f"?client_id={settings.google_client_id}"
-        f"&redirect_uri={request.url_for('google_callback')}"
+        f"&redirect_uri={_get_google_redirect_uri(request)}"
         "&response_type=code"
         "&scope=openid%20email%20profile"
         f"&state={state_token}"
@@ -782,7 +790,7 @@ async def google_callback(
                     "code": code,
                     "client_id": settings.google_client_id,
                     "client_secret": settings.google_client_secret.get_secret_value(),
-                    "redirect_uri": str(request.url_for("google_callback")),
+                    "redirect_uri": _get_google_redirect_uri(request),
                     "grant_type": "authorization_code",
                 },
                 timeout=10.0,

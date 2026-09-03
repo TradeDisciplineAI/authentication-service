@@ -132,7 +132,9 @@ class RazorpayService:
                     if rzp_response.status_code in (200, 201):
                         rzp_data = rzp_response.json()
                         razorpay_order_id = rzp_data.get("id", razorpay_order_id)
-                        logger.info("Successfully created Razorpay order %s", razorpay_order_id)
+                        logger.info(
+                            "Successfully created Razorpay order %s", razorpay_order_id
+                        )
                     else:
                         logger.warning(
                             "Razorpay API order creation failed (%d): %s. Using local order ID.",
@@ -140,7 +142,10 @@ class RazorpayService:
                             rzp_response.text,
                         )
             except Exception as e:
-                logger.warning("Error communicating with Razorpay API: %s. Using local order ID.", e)
+                logger.warning(
+                    "Error communicating with Razorpay API: %s. Using local order ID.",
+                    e,
+                )
 
         order = PaymentOrder(
             id=uuid.uuid4(),
@@ -174,7 +179,7 @@ class RazorpayService:
         Computes signature over 'order_id|payment_id' using razorpay_key_secret and performs constant-time comparison.
         """
         secret = settings.razorpay_key_secret.get_secret_value()
-        msg = f"{order_id}|{payment_id}".encode("utf-8")
+        msg = f"{order_id}|{payment_id}".encode()
         expected_sig = hmac.new(
             secret.encode("utf-8"),
             msg,

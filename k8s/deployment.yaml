@@ -51,7 +51,7 @@ spec:
 
       containers:
         - name: auth-app
-          image: tradingacr.azurecr.io/auth-service:v1.0.0
+          image: tradingacr.azurecr.io/auth-service:v1.0.1
           imagePullPolicy: IfNotPresent
 
           securityContext:

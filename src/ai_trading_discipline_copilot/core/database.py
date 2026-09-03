@@ -46,4 +46,5 @@ class Base(DeclarativeBase):
     """
     Abstract declarative base class inherited by all database ORM models in the service.
     """
+
     pass

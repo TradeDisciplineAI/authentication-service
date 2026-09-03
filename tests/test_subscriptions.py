@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 import uuid
+
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -103,7 +104,7 @@ async def test_verify_valid_payment_signature(
     rzp_payment_id = f"pay_{uuid.uuid4().hex[:12]}"
 
     secret = settings.razorpay_key_secret.get_secret_value()
-    msg = f"{rzp_order_id}|{rzp_payment_id}".encode("utf-8")
+    msg = f"{rzp_order_id}|{rzp_payment_id}".encode()
     valid_signature = hmac.new(secret.encode("utf-8"), msg, hashlib.sha256).hexdigest()
 
     auth_client = await get_authenticated_client(client, sample_user)

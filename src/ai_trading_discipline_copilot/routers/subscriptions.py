@@ -8,7 +8,7 @@ verify HMAC-SHA256 signatures, upgrade user tiers, and retrieve active subscript
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_trading_discipline_copilot.core.dependencies import get_current_user, get_db
@@ -42,7 +42,7 @@ async def get_subscription_plans(
     Both plans include full access to all AI Agents (Agents 1-6).
     """
     plans = await RazorpayService.get_or_seed_plans(db)
-    return plans
+    return [SubscriptionPlanResponse.model_validate(p) for p in plans]
 
 
 # ------------------ Create Payment Order Endpoint -----------------------
@@ -65,7 +65,7 @@ async def create_payment_order(
         user_id=current_user.id,
         plan_id=request.plan_id,
     )
-    return order_data
+    return CreateOrderResponse(**order_data)
 
 
 # ------------------ Verify Payment Signature Endpoint -----------------------
@@ -91,7 +91,7 @@ async def verify_payment_signature(
         razorpay_payment_id=request.razorpay_payment_id,
         razorpay_signature=request.razorpay_signature,
     )
-    return result
+    return VerifyPaymentResponse(**result)
 
 
 # ------------------ Get My Active Subscription Endpoint -----------------------
@@ -109,4 +109,9 @@ async def get_my_subscription(
     portfolio addition limits, and subscription period expiration dates.
     """
     sub = await RazorpayService.get_user_subscription(db, current_user.id)
-    return sub
+    if not sub:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User subscription not found",
+        )
+    return UserSubscriptionResponse(**sub)

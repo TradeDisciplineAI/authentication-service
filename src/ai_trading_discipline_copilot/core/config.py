@@ -71,6 +71,7 @@ class Settings(BaseSettings):
     resend_api_key: SecretStr
     email_from: str
     frontend_url: str
+    public_api_url: str | None = None
 
     # Redis
     redis_url: str = "redis://localhost:6379/0"

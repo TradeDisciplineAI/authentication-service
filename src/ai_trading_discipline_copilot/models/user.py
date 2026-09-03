@@ -31,6 +31,7 @@ class UserRole(enum.StrEnum):
     """
     Enumeration defining administrative and standard user access control roles.
     """
+
     ADMIN = "admin"
     USER = "user"
 
@@ -41,6 +42,7 @@ class User(Base):
     Primary User database model mapping account credentials, verification flags, subscription tiers,
     brute-force login failure counts, and token relationships in the authentication schema.
     """
+
     __tablename__ = "users"
     __table_args__ = {"schema": "authentication"}
 

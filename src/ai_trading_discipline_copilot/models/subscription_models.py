@@ -7,12 +7,12 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, Enum, ForeignKey, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from ai_trading_discipline_copilot.core.database import Base
 
 if TYPE_CHECKING:
-    from .user import User
+    pass
 
 
 # ------------------ Subscription Enums Feature -----------------------
@@ -43,7 +43,9 @@ class SubscriptionPlan(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     amount: Mapped[int] = mapped_column(Integer, nullable=False)
     currency: Mapped[str] = mapped_column(String(10), default="INR", nullable=False)
-    billing_interval: Mapped[str] = mapped_column(String(20), default="monthly", nullable=False)
+    billing_interval: Mapped[str] = mapped_column(
+        String(20), default="monthly", nullable=False
+    )
     max_portfolios: Mapped[int] = mapped_column(Integer, default=5, nullable=False)
     razorpay_plan_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
@@ -75,14 +77,20 @@ class UserSubscription(Base):
         ForeignKey("authentication.subscription_plans.id"),
         nullable=False,
     )
-    razorpay_subscription_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    razorpay_subscription_id: Mapped[str | None] = mapped_column(
+        String(255), nullable=True, index=True
+    )
     status: Mapped[SubscriptionStatus] = mapped_column(
         Enum(SubscriptionStatus, name="subscription_status", schema="authentication"),
         default=SubscriptionStatus.PENDING,
         nullable=False,
     )
-    current_period_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    current_period_end: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    current_period_start: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    current_period_end: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -118,7 +126,9 @@ class PaymentOrder(Base):
         ForeignKey("authentication.subscription_plans.id"),
         nullable=False,
     )
-    razorpay_order_id: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
+    razorpay_order_id: Mapped[str] = mapped_column(
+        String(255), unique=True, index=True, nullable=False
+    )
     amount: Mapped[int] = mapped_column(Integer, nullable=False)
     currency: Mapped[str] = mapped_column(String(10), default="INR", nullable=False)
     status: Mapped[OrderStatus] = mapped_column(
@@ -162,7 +172,9 @@ class PaymentTransaction(Base):
         nullable=False,
         index=True,
     )
-    razorpay_payment_id: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
+    razorpay_payment_id: Mapped[str] = mapped_column(
+        String(255), unique=True, index=True, nullable=False
+    )
     razorpay_signature: Mapped[str] = mapped_column(String(255), nullable=False)
     amount: Mapped[int] = mapped_column(Integer, nullable=False)
     status: Mapped[str] = mapped_column(String(50), default="SUCCESS", nullable=False)
