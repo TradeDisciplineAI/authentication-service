@@ -33,6 +33,8 @@ data:
   ACCESS_TOKEN_EXPIRE_MINUTES: "30"
   ENABLE_LOGIN_RATE_LIMITING: "false"
   COOKIE_SECURE: "true"
+  COOKIE_SAMESITE: "none"
+  PUBLIC_API_URL: "https://tradingcopilot.duckdns.org"
 
   # ── Redis ────────────────────────────────────────────────────────────────────
   # In Docker Compose this pointed to 'shared_redis' on trading_network.
@@ -44,13 +46,10 @@ data:
   AI_MODEL: "gpt-4o"
 
   # ── CORS ─────────────────────────────────────────────────────────────────────
-  ALLOWED_ORIGINS: '["http://localhost:3000","http://localhost:8000","http://localhost:5175"]'
+  ALLOWED_ORIGINS: '["http://localhost:3000","http://localhost:8000","http://localhost:5175","https://tradingcopilot.vercel.app","https://tradingcopilot.duckdns.org"]'
 
   # ── Email ────────────────────────────────────────────────────────────────────
   EMAIL_FROM: "noreply@audicle.in"
-  FRONTEND_URL: "http://localhost:3000"
+  FRONTEND_URL: "https://tradingcopilot.vercel.app"
 
-  # ── Hosts ────────────────────────────────────────────────────────────────────
-  # Explicit allowlist of known safe hostnames for TrustedHostMiddleware validation.
-  # Health probes send Host: localhost via probe httpHeaders.
-  ALLOWED_HOSTS: '["localhost","127.0.0.1","auth-app","auth-app.authentication.svc.cluster.local","auth-app.authentication","tradingcopilot.duckdns.org","48.217.133.140"]'
+  ALLOWED_HOSTS: '["*"]'
