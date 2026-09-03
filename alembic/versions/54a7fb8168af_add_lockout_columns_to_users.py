@@ -21,21 +21,11 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     """Upgrade schema."""
-    # Add failed_login_attempts with server_default so existing rows get 0
-    op.add_column(
-        "users",
-        sa.Column(
-            "failed_login_attempts",
-            sa.Integer(),
-            nullable=False,
-            server_default="0",
-        ),
+    op.execute(
+        "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'failed_login_attempts') THEN ALTER TABLE users ADD COLUMN failed_login_attempts INTEGER NOT NULL DEFAULT 0; ALTER TABLE users ALTER COLUMN failed_login_attempts DROP DEFAULT; END IF; END $$;"
     )
-    # Remove the server_default so the column behaves as application-managed
-    op.alter_column("users", "failed_login_attempts", server_default=None)
-    op.add_column(
-        "users",
-        sa.Column("lockout_until", sa.DateTime(timezone=True), nullable=True),
+    op.execute(
+        "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'lockout_until') THEN ALTER TABLE users ADD COLUMN lockout_until TIMESTAMP WITH TIME ZONE NULL; END IF; END $$;"
     )
 
 

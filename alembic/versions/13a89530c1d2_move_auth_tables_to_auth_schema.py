@@ -19,15 +19,18 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    """Move authentication tables to the authentication schema."""
+    """Move authentication tables to the authentication schema if present in public."""
     op.execute("CREATE SCHEMA IF NOT EXISTS authentication")
 
-    op.execute("ALTER TABLE public.users SET SCHEMA authentication")
-    op.execute("ALTER TABLE public.refresh_tokens SET SCHEMA authentication")
-    op.execute("ALTER TABLE public.password_reset_tokens SET SCHEMA authentication")
-    op.execute("ALTER TABLE public.email_verification_tokens SET SCHEMA authentication")
+    tables = ["users", "refresh_tokens", "password_reset_tokens", "email_verification_tokens"]
+    for table in tables:
+        op.execute(
+            f"DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = '{table}') AND NOT EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'authentication' AND tablename = '{table}') THEN ALTER TABLE public.{table} SET SCHEMA authentication; END IF; END $$;"
+        )
 
-    op.execute("ALTER TYPE public.user_role SET SCHEMA authentication")
+    op.execute(
+        "DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace WHERE n.nspname = 'public' AND t.typname = 'user_role') AND NOT EXISTS (SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace WHERE n.nspname = 'authentication' AND t.typname = 'user_role') THEN ALTER TYPE public.user_role SET SCHEMA authentication; END IF; END $$;"
+    )
 
 def downgrade() -> None:
     """Move authentication tables back to the public schema."""

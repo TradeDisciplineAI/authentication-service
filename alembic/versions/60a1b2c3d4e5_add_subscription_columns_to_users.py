@@ -19,29 +19,12 @@ depends_on = '13a89530c1d2'
 
 def upgrade() -> None:
     """Upgrade schema."""
-    op.add_column(
-        "users",
-        sa.Column(
-            "trades_count",
-            sa.Integer(),
-            nullable=False,
-            server_default="0",
-        ),
-        schema="authentication",
+    op.execute(
+        "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'authentication' AND table_name = 'users' AND column_name = 'trades_count') THEN ALTER TABLE authentication.users ADD COLUMN trades_count INTEGER NOT NULL DEFAULT 0; ALTER TABLE authentication.users ALTER COLUMN trades_count DROP DEFAULT; END IF; END $$;"
     )
-    op.alter_column("users", "trades_count", server_default=None, schema="authentication")
-
-    op.add_column(
-        "users",
-        sa.Column(
-            "subscription_tier",
-            sa.String(length=20),
-            nullable=False,
-            server_default="FREE",
-        ),
-        schema="authentication",
+    op.execute(
+        "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'authentication' AND table_name = 'users' AND column_name = 'subscription_tier') THEN ALTER TABLE authentication.users ADD COLUMN subscription_tier VARCHAR(20) NOT NULL DEFAULT 'FREE'; ALTER TABLE authentication.users ALTER COLUMN subscription_tier DROP DEFAULT; END IF; END $$;"
     )
-    op.alter_column("users", "subscription_tier", server_default=None, schema="authentication")
 
 
 def downgrade() -> None:
