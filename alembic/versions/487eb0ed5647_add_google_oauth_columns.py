@@ -22,10 +22,10 @@ depends_on: str | Sequence[str] | None = None
 def upgrade() -> None:
     """Upgrade schema."""
     op.execute(
-        "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'google_id') THEN ALTER TABLE users ADD COLUMN google_id VARCHAR(255) NULL; END IF; END $$;"
+        "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE (table_schema = 'authentication' OR table_schema = 'public') AND table_name = 'users' AND column_name = 'google_id') THEN IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'authentication' AND tablename = 'users') THEN ALTER TABLE authentication.users ADD COLUMN google_id VARCHAR(255) NULL; ELSE ALTER TABLE public.users ADD COLUMN google_id VARCHAR(255) NULL; END IF; END IF; END $$;"
     )
-    op.alter_column(
-        "users", "hashed_password", existing_type=sa.VARCHAR(length=255), nullable=True
+    op.execute(
+        "DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'authentication' AND tablename = 'users') THEN ALTER TABLE authentication.users ALTER COLUMN hashed_password DROP NOT NULL; ELSE ALTER TABLE public.users ALTER COLUMN hashed_password DROP NOT NULL; END IF; END $$;"
     )
 
 
