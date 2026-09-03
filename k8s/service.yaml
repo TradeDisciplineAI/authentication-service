@@ -30,6 +30,7 @@ spec:
   selector:
     app: auth-app
   ports:
-    - port: 8000           # Service port (cluster-internal)
+    - name: http
+      port: 8000           # Service port (cluster-internal)
       targetPort: 8000     # Container port
       protocol: TCP

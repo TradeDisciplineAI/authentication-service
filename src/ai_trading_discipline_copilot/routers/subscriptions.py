@@ -36,7 +36,7 @@ router = APIRouter(prefix="/subscriptions", tags=["Razorpay Subscriptions"])
 )
 async def get_subscription_plans(
     db: Annotated[AsyncSession, Depends(get_db)],
-):
+) -> list[SubscriptionPlanResponse]:
     """
     Public endpoint retrieving available subscription plans (FREE with 5 portfolios, PRO with 15 portfolios).
     Both plans include full access to all AI Agents (Agents 1-6).
@@ -55,7 +55,7 @@ async def create_payment_order(
     request: CreateOrderRequest,
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
-):
+) -> CreateOrderResponse:
     """
     Authenticated endpoint creating a new Razorpay payment order for the specified plan ID.
     Generates a unique order ID and receipt for frontend Razorpay checkout initialization.
@@ -78,7 +78,7 @@ async def verify_payment_signature(
     request: VerifyPaymentRequest,
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
-):
+) -> VerifyPaymentResponse:
     """
     Authenticated endpoint validating Razorpay payment signature via HMAC-SHA256 constant-time check.
     On valid verification, updates payment order status to PAID, logs audit transaction,
@@ -103,7 +103,7 @@ async def verify_payment_signature(
 async def get_my_subscription(
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
-):
+) -> UserSubscriptionResponse:
     """
     Authenticated endpoint retrieving current user's active subscription tier, plan name,
     portfolio addition limits, and subscription period expiration dates.

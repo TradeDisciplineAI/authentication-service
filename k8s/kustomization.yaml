@@ -22,5 +22,6 @@ resources:
   - redis-service.yaml
   - deployment.yaml
   - service.yaml
+  - servicemonitor.yaml
   - celery-deployment.yaml
   - celery-beat-deployment.yaml
