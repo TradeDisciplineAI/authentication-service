@@ -41,8 +41,10 @@ async def sample_user(db_session: AsyncSession) -> User:
 
 # ------------------ Get Subscription Plans Test -----------------------
 @pytest.mark.asyncio
-async def test_get_subscription_plans(client: AsyncClient, db_session: AsyncSession):
-    response = await client.get("/subscriptions/plans")
+async def test_get_subscription_plans(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    response = await client.get("/auth/subscriptions/plans")
     assert response.status_code == 200
     plans = response.json()
     plan_names = [p["name"] for p in plans]
@@ -62,19 +64,19 @@ async def test_create_payment_order(
     client: AsyncClient,
     db_session: AsyncSession,
     sample_user: User,
-):
+) -> None:
     plans = await RazorpayService.get_or_seed_plans(db_session)
     pro_plan = next(p for p in plans if p.name == "PRO")
 
     unauth_resp = await client.post(
-        "/subscriptions/create-order",
+        "/auth/subscriptions/create-order",
         json={"plan_id": str(pro_plan.id)},
     )
     assert unauth_resp.status_code == 401
 
     auth_client = await get_authenticated_client(client, sample_user)
     response = await auth_client.post(
-        "/subscriptions/create-order",
+        "/auth/subscriptions/create-order",
         json={"plan_id": str(pro_plan.id)},
     )
     assert response.status_code == 201
@@ -91,7 +93,7 @@ async def test_verify_valid_payment_signature(
     client: AsyncClient,
     db_session: AsyncSession,
     sample_user: User,
-):
+) -> None:
     plans = await RazorpayService.get_or_seed_plans(db_session)
     pro_plan = next(p for p in plans if p.name == "PRO")
 
@@ -110,7 +112,7 @@ async def test_verify_valid_payment_signature(
     auth_client = await get_authenticated_client(client, sample_user)
 
     verify_resp = await auth_client.post(
-        "/subscriptions/verify-payment",
+        "/auth/subscriptions/verify-payment",
         json={
             "razorpay_order_id": rzp_order_id,
             "razorpay_payment_id": rzp_payment_id,
@@ -122,7 +124,7 @@ async def test_verify_valid_payment_signature(
     assert res_data["status"] == "SUCCESS"
     assert res_data["subscription_tier"] == "PRO"
 
-    sub_resp = await auth_client.get("/subscriptions/my-subscription")
+    sub_resp = await auth_client.get("/auth/subscriptions/my-subscription")
     assert sub_resp.status_code == 200
     sub_data = sub_resp.json()
     assert sub_data["subscription_tier"] == "PRO"
@@ -135,7 +137,7 @@ async def test_reject_invalid_payment_signature(
     client: AsyncClient,
     db_session: AsyncSession,
     sample_user: User,
-):
+) -> None:
     plans = await RazorpayService.get_or_seed_plans(db_session)
     pro_plan = next(p for p in plans if p.name == "PRO")
 
@@ -150,7 +152,7 @@ async def test_reject_invalid_payment_signature(
 
     auth_client = await get_authenticated_client(client, sample_user)
     verify_resp = await auth_client.post(
-        "/subscriptions/verify-payment",
+        "/auth/subscriptions/verify-payment",
         json={
             "razorpay_order_id": rzp_order_id,
             "razorpay_payment_id": rzp_payment_id,

@@ -116,4 +116,4 @@ async def celery_ping() -> dict[str, str]:
 
 # ------------------ Mount API Routers -----------------------
 app.include_router(auth_router)
-app.include_router(subscriptions_router)
+app.include_router(subscriptions_router, prefix="/auth")
