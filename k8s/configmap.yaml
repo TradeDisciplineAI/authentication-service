@@ -1,0 +1,55 @@
+# =============================================================================
+# ConfigMap — Authentication Service
+#
+# Non-sensitive environment variables.
+# Mirrors the 'environment:' block in docker-compose.yml,
+# excluding secrets (which go in secret.yaml).
+#
+# Docker Compose equivalent:
+#   environment:
+#     - APP_NAME=AI Trading Discipline Copilot
+#     - APP_ENV=development
+#     ...
+# =============================================================================
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: auth-config
+  namespace: authentication
+  labels:
+    app.kubernetes.io/name: auth-service
+    app.kubernetes.io/component: config
+    app.kubernetes.io/part-of: trading-platform
+data:
+  # ── Application ──────────────────────────────────────────────────────────────
+  APP_NAME: "AI Trading Discipline Copilot"
+  APP_VERSION: "0.1.0"
+  APP_ENV: "development"
+  DEBUG: "true"
+
+  # ── Auth / JWT ───────────────────────────────────────────────────────────────
+  ALGORITHM: "HS256"
+  ACCESS_TOKEN_EXPIRE_MINUTES: "30"
+  ENABLE_LOGIN_RATE_LIMITING: "false"
+  COOKIE_SECURE: "true"
+  COOKIE_SAMESITE: "none"
+  PUBLIC_API_URL: "https://tradingcopilot.duckdns.org"
+
+  # ── Redis ────────────────────────────────────────────────────────────────────
+  # In Docker Compose this pointed to 'shared_redis' on trading_network.
+  # In Kubernetes it points to the redis Service within the same namespace.
+  REDIS_URL: "redis://redis:6379/0"
+
+  # ── AI Provider ──────────────────────────────────────────────────────────────
+  AI_PROVIDER: "openai"
+  AI_MODEL: "gpt-4o"
+
+  # ── CORS ─────────────────────────────────────────────────────────────────────
+  ALLOWED_ORIGINS: '["http://localhost:3000","http://localhost:8000","http://localhost:5175","https://tradingcopilot.vercel.app","https://tradingcopilot.duckdns.org"]'
+
+  # ── Email ────────────────────────────────────────────────────────────────────
+  EMAIL_FROM: "noreply@audicle.in"
+  FRONTEND_URL: "https://tradingcopilot.vercel.app"
+
+  ALLOWED_HOSTS: '["*"]'

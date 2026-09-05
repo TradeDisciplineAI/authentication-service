@@ -1,0 +1,27 @@
+# =============================================================================
+# Kustomization — Authentication Service
+#
+# Bundles all valid Kubernetes manifests for the authentication service while
+# explicitly excluding secret.example.yaml to prevent overwriting secrets.
+#
+# Usage:
+#   kubectl apply -k k8s/
+# =============================================================================
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: authentication
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - secret.yaml
+  - redis-pvc.yaml
+  - redis-deployment.yaml
+  - redis-service.yaml
+  - deployment.yaml
+  - service.yaml
+  - servicemonitor.yaml
+  - celery-deployment.yaml
+  - celery-beat-deployment.yaml

@@ -1,0 +1,102 @@
+[
+  {
+    "username": "loadtest_00001",
+    "password": "Password123!",
+    "email": "loadtest-00001@example.com"
+  },
+  {
+    "username": "loadtest_00002",
+    "password": "Password123!",
+    "email": "loadtest-00002@example.com"
+  },
+  {
+    "username": "loadtest_00003",
+    "password": "Password123!",
+    "email": "loadtest-00003@example.com"
+  },
+  {
+    "username": "loadtest_00004",
+    "password": "Password123!",
+    "email": "loadtest-00004@example.com"
+  },
+  {
+    "username": "loadtest_00005",
+    "password": "Password123!",
+    "email": "loadtest-00005@example.com"
+  },
+  {
+    "username": "loadtest_00006",
+    "password": "Password123!",
+    "email": "loadtest-00006@example.com"
+  },
+  {
+    "username": "loadtest_00007",
+    "password": "Password123!",
+    "email": "loadtest-00007@example.com"
+  },
+  {
+    "username": "loadtest_00008",
+    "password": "Password123!",
+    "email": "loadtest-00008@example.com"
+  },
+  {
+    "username": "loadtest_00009",
+    "password": "Password123!",
+    "email": "loadtest-00009@example.com"
+  },
+  {
+    "username": "loadtest_00010",
+    "password": "Password123!",
+    "email": "loadtest-00010@example.com"
+  },
+  {
+    "username": "loadtest_00011",
+    "password": "Password123!",
+    "email": "loadtest-00011@example.com"
+  },
+  {
+    "username": "loadtest_00012",
+    "password": "Password123!",
+    "email": "loadtest-00012@example.com"
+  },
+  {
+    "username": "loadtest_00013",
+    "password": "Password123!",
+    "email": "loadtest-00013@example.com"
+  },
+  {
+    "username": "loadtest_00014",
+    "password": "Password123!",
+    "email": "loadtest-00014@example.com"
+  },
+  {
+    "username": "loadtest_00015",
+    "password": "Password123!",
+    "email": "loadtest-00015@example.com"
+  },
+  {
+    "username": "loadtest_00016",
+    "password": "Password123!",
+    "email": "loadtest-00016@example.com"
+  },
+  {
+    "username": "loadtest_00017",
+    "password": "Password123!",
+    "email": "loadtest-00017@example.com"
+  },
+  {
+    "username": "loadtest_00018",
+    "password": "Password123!",
+    "email": "loadtest-00018@example.com"
+  },
+  {
+    "username": "loadtest_00019",
+    "password": "Password123!",
+    "email": "loadtest-00019@example.com"
+  },
+  {
+    "username": "loadtest_00020",
+    "password": "Password123!",
+    "email": "loadtest-00020@example.com"
+  }
+]

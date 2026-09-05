@@ -1,0 +1,36 @@
+# =============================================================================
+# Service — Authentication Service (FastAPI)
+#
+# Exposes the auth-app Deployment so it can receive traffic.
+#
+# Docker Compose equivalent:
+#   auth_app:
+#     ports:
+#       - "8000:8000"
+#
+# Access methods:
+#   - Inside the cluster: http://auth-app:8000
+#   - From your browser:  http://localhost:30080
+#
+# Docker Desktop supports LoadBalancer type natively —
+# it maps the service port directly to localhost.
+# =============================================================================
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth-app
+  namespace: authentication
+  labels:
+    app.kubernetes.io/name: auth-service
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: trading-platform
+spec:
+  type: ClusterIP
+  selector:
+    app: auth-app
+  ports:
+    - name: http
+      port: 8000           # Service port (cluster-internal)
+      targetPort: 8000     # Container port
+      protocol: TCP

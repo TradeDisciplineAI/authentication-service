@@ -1,0 +1,24 @@
+# Normalize line endings for cross-platform teams (Windows / Mac / Linux)
+# Git will convert to LF on commit, and to OS native on checkout.
+
+* text=auto eol=lf
+
+# Force LF for all code and config files
+*.py    text eol=lf
+*.toml  text eol=lf
+*.yaml  text eol=lf
+*.yml   text eol=lf
+*.md    text eol=lf
+*.ini   text eol=lf
+*.txt   text eol=lf
+*.env   text eol=lf
+*.cfg   text eol=lf
+
+# Binary files -- never touch line endings
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.pdf   binary
+*.zip   binary

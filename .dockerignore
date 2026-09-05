@@ -1,0 +1,36 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Virtual Environment
+.venv
+venv
+env
+
+# Cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local configuration / secrets
+.env
+.env.local
+
+# Docker files (no need to copy inside container)
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# IDE configs
+.vscode/
+.idea/
+
+# Local database / Alembic auto-gen artifacts
+*.db
+*.sqlite
